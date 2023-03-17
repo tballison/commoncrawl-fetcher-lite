@@ -4,7 +4,7 @@ This is yet another attempt to make it easy to extract files from
 [Common Crawl](https://commoncrawl.org/).
 
 > **Warning!!!**
-THIS IS STILL ALPHA!  There will be bugs.
+THIS IS STILL ALPHA!  There will be bugs. Things will change without warning.
 
 ## Goal
 Make it easy to extract or refetch a smallish sample (~ couple of million) of complete files from CommonCrawl data.
