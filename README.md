@@ -18,11 +18,11 @@ make use of this fetcher.
 
 Common Crawl crawls a large portion of the internet each month (roughly 3 billion URLs).
 
-The project truncates files at **1MB**. Researchers who want complete files must refetch
-truncated files from the original URLs.
-
 Common Crawl packages the raw files inside [WARC](https://en.wikipedia.org/wiki/Web_ARChive) files, each of which is gzipped and then 
 appended to other gzipped WARC files to create very large files stored in AWS's S3 buckets.
+
+The project truncates files at **1MB**. Researchers who want complete files must refetch
+truncated files from the original URLs.
 
 The index files and these very large files are accessible via `S3` and HTTPS.
 
@@ -111,7 +111,7 @@ There are many configuration options -- see [ConfiguringTheFetch](ConfiguringThe
 ```
 
 ### Run the Code
-Users must have Java (> 11) installed.
+Users must have Java (>= 11) installed.
 
 The commandline:
 `java -jar commoncrawl-fetcher-lite-X.Y.Z.jar config.json`
