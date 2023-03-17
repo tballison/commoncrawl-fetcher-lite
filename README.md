@@ -3,6 +3,9 @@ Simplified version of a common crawl fetcher.
 This is yet another attempt to make it easy to extract files from 
 [Common Crawl](https://commoncrawl.org/).
 
+> **Warning!!!**
+THIS IS STILL ALPHA!  There will be bugs.
+
 ## Goal
 Make it easy to extract or refetch a smallish sample (~ couple of million) of complete files from CommonCrawl data.
 My primary interest is in binary files, so there's an emphasis on being able to sample
@@ -151,10 +154,11 @@ Please open issues to help prioritize future development.
 
 1. Allow reads and writes in `S3`.
 2. Add more features to the record selector -- handle numeric values (e.g. `int`) and allow for `gt`, `gte` and `range` options
-3. Add a refetcher that stores the refetched files with the same policy that the fetcher stores files (same file+directory naming strategy)
+3. Add a refetcher that stores the refetched files with the same policy that the fetcher stores files (same file+directory naming strategy) and potentially writes a table of URLs and fetched digest.
 4. Allow processing of index files from a local cache.  For exploration, it can be useful to process index files multiple times.  There is no reason to pull 300MB over http for each investigation.
 5. Allow a different extracted file naming scheme -- CC's sha1 or any encoding+digest combination?
 6. Allow extraction of truncated files.
 7. Allow counting of mimes or other features -- not just those selected.
 8. Store fetch status and refetch status in an actual database -- against the design goals of this project. LOL...
+9. Write csv with URL+extracted digest info so that users can link bytes to URLs.
 9. ...
