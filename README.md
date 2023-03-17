@@ -125,7 +125,7 @@ There are many options for this.  The simplest might be:
 This is intended to be light-weight.  The current design does not store 
 provenance information for the URLs nor for the refetches.  
 The goal is simply to select files for extraction and to
-extract them.
+extract them or record the URLs for truncated files.
 
 This has been initially designed for users working outside Amazon's environment. 
 We will likely add access to `S3` resources in the future.
@@ -136,4 +136,15 @@ This code is designed with back-off logic so that it will pause if it gets a thr
 
 This code is multithreaded.  However, given AWS's throttling, it is not useful to run more than about 3 threads.
 
+## Roadmap
 
+Some features that could be added.  Please open issues to help prioritize
+future development.
+
+1. Allow reads and writes in `S3`.
+2. Add more features to the record selector -- handle numeric values (e.g. `int`) and allow for `gt`, `gte` and `range` options
+3. Add a refetcher that stores the refetched files with the same policy that the fetcher stores files (same file+directory naming strategy)
+4. Allow processing of index files from a local cache.  For exploration, it can be useful to process index files multiple times.  There is no reason to pull 300MB over http for each investigation.
+5. Allow a different extracted file naming scheme -- CC's sha1 or any encoding+digest combination?
+6. Allow extraction of truncated files.
+7. ...

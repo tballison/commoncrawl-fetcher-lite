@@ -19,7 +19,6 @@ package org.tallison.cc.index.fetcher;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
-import org.apache.tika.pipes.emitter.Emitter;
 import org.apache.tika.pipes.emitter.StreamEmitter;
 import org.apache.tika.pipes.emitter.fs.FileSystemEmitter;
 import org.tallison.cc.index.io.TargetPathRewriter;

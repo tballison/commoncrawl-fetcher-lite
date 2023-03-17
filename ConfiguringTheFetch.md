@@ -49,6 +49,10 @@ A full config file would include:
 }
 ```
 
+## DryRun
+If set to `true`, this processes all the records but does not extract the
+non-truncated files.  This can be useful for counting files.
+
 ## MaxRecords, MaxFilesExtracted, MaxFilesTruncated
 If these are all set to `-1`, or they are not included, the fetcher will
 run against every index record.
