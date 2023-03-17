@@ -1,0 +1,33 @@
+{
+  "numThreads":10,
+  "maxRecords":-1,
+  "maxFilesExtracted":10000,
+  "maxFilesTruncated":-1,
+  "indexPathsFile":"crawls.txt",
+  "filesDirectory":"docs",
+  "truncatedUrlsFile":"truncated.txt",
+  "recordSelector": {
+    "should": {
+      "detected_mime": [
+        {
+          "match": "application/pdf",
+          "sample": 0.8
+        }
+      ]
+    },
+    "must": {
+      "status": [
+        {
+          "match": "200"
+        }
+      ]
+    },
+    "must_not" : {
+      "status": [
+        {
+          "match": "300"
+        }
+      ]
+    }
+  }
+}

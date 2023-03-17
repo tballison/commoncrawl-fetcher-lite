@@ -1,0 +1,7 @@
+#Each of these is a small text file that contains lists of paths
+#to crawl indices for a given crawl.
+#You may get these links from CommonCrawl's blog: https://commoncrawl.org/connect/blog/
+https://data.commoncrawl.org/crawl-data/CC-MAIN-2023-06/cc-index.paths.gz
+https://data.commoncrawl.org/crawl-data/CC-MAIN-2022-49/cc-index.paths.gz
+https://data.commoncrawl.org/crawl-data/CC-MAIN-2022-40/cc-index.paths.gz
+https://data.commoncrawl.org/crawl-data/CC-MAIN-2022-33/cc-index.paths.gz
