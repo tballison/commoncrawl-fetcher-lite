@@ -254,6 +254,10 @@ public class CCFetcherCli {
                 String line = reader.readLine();
                 while (line != null) {
                     try {
+                        if (line.startsWith("#")) {
+                            line = reader.readLine();
+                            continue;
+                        }
                         if (line.endsWith("cc-index.paths.gz")) {
                             loadIndexPaths(line);
                             //don't overwhelm aws...seriously...
@@ -286,6 +290,10 @@ public class CCFetcherCli {
                             , StandardCharsets.UTF_8))) {
                 String line = reader.readLine();
                 while (line != null) {
+                    if (line.startsWith("#")) {
+                        line = reader.readLine();
+                        continue;
+                    }
                     if (line.endsWith(".gz")) {
                         //hangs permanently
                         indexFiles.put(line);

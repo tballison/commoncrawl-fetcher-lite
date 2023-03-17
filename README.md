@@ -6,27 +6,27 @@ This is yet another attempt to make it easy to extract files from
 ## Goal
 Make it easy to extract or refetch a smallish sample (~ couple of million) of complete files from CommonCrawl data.
 My primary interest is in binary files, so there's an emphasis on being able to sample
-and extract files by mime-type.  If you're building large language models, you'll
-want to process the full corpus on Amazon resources.  You will not want to use this project.
+and extract files by mime-type.  If you're building large language models, or if 
+you want to process **ALL** of Common Crawl, this project is not for you.
 
 ## Background
-This section is critical to understanding how CommonCrawl is structured and
-how this tool works.
+This section is critical to understanding enough of how CommonCrawl is structured to
+make use of this fetcher.
 
 Common Crawl crawls a large portion of the internet each month (roughly 3 billion URLs).
 
 The project truncates files at **1MB**. Researchers who want complete files must refetch
 truncated files from the original URLs.
 
-Common Crawl packages the raw files inside WARC files, each of which is gzipped and then 
+Common Crawl packages the raw files inside [WARC](https://en.wikipedia.org/wiki/Web_ARChive) files, each of which is gzipped and then 
 appended to other gzipped WARC files to create very large files stored in AWS's S3 buckets.
 
 The index files and these very large files are accessible via `S3` and HTTPS.
 
-Users may extract individual [WARC](https://en.wikipedia.org/wiki/Web_ARChive) files with an HTTP range query.
+Users may extract individual WARC files with an HTTP range query.
 
-To ease access to files, Common Crawl publishes index files, roughly 300GB compressed per crawl.
-Each line of these index files contains the following information:
+To ease access to files, Common Crawl publishes index files, roughly 300GB compressed/1TB uncompressed per crawl.
+Each line of these index files stores information about a fetch of a single URL:
 
  1. the URL in an archival format
  2. a timestamp
@@ -61,7 +61,8 @@ The JSON object for some records includes the following:
 7. `mime-detected` -- what the file was identified as by Apache Tika
 8. `offset` -- this is the offset in the file defined in `filename` where this files WARC starts
 9. `status` -- the http status returned during the fetch
-10. `truncated` -- (not included in the example) if the file was truncated, there's a value here. The most common is `length`, but there are other reasons why a file may be truncated
+10. `redirect` -- (not included in the example) if a `302`, the redirect URL is stored
+11. `truncated` -- (not included in the example) if the file was truncated, there's a value here. The most common is `length`, but there are other reasons why a file may be truncated
 11. `url` -- the target URL for this file
 
 ## Steps
@@ -118,8 +119,14 @@ will write a file of URLs for the `mp4` files that but were CommonCrawl truncate
 to a file named `urls-for-truncated-files.txt`.
 
 ### Refetch Truncated Files
-There are many options for this.  The simplest might be:
+There are many options for this.  The simplest might be [wget](https://www.gnu.org/software/wget/):
 `wget -i urls-for-truncated-files.txt`
+
+See also options for [curl](https://curl.se/).  
+
+The [Nutch project](https://nutch.apache.org/) may be overkill, but it is
+extremely robust (**it powers Common Crawl!**), and it records the WARC information
+for each fetch.
 
 ## Design Goals
 This is intended to be light-weight.  The current design does not store 
@@ -130,7 +137,7 @@ extract them or record the URLs for truncated files.
 This has been initially designed for users working outside Amazon's environment. 
 We will likely add access to `S3` resources in the future.
 
-**NOTE**
+> **Warning!!!**
 AWS throttles the rates at which people may pull data through the public https option.
 This code is designed with back-off logic so that it will pause if it gets a throttle warning from AWS.
 
@@ -138,8 +145,9 @@ This code is multithreaded.  However, given AWS's throttling, it is not useful t
 
 ## Roadmap
 
-Some features that could be added.  Please open issues to help prioritize
-future development.
+Some features that could be added are included below.
+
+Please open issues to help prioritize future development.
 
 1. Allow reads and writes in `S3`.
 2. Add more features to the record selector -- handle numeric values (e.g. `int`) and allow for `gt`, `gte` and `range` options
@@ -147,4 +155,6 @@ future development.
 4. Allow processing of index files from a local cache.  For exploration, it can be useful to process index files multiple times.  There is no reason to pull 300MB over http for each investigation.
 5. Allow a different extracted file naming scheme -- CC's sha1 or any encoding+digest combination?
 6. Allow extraction of truncated files.
-7. ...
+7. Allow counting of mimes or other features -- not just those selected.
+8. Store fetch status and refetch status in an actual database -- against the design goals of this project. LOL...
+9. ...
