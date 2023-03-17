@@ -1,6 +1,6 @@
 {
   "should": {
-    "detected_mime": [
+    "mime_detected": [
       {
         "match": "application/pdf",
         "sample": 0.8

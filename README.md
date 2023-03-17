@@ -67,10 +67,10 @@ The JSON object for some records includes the following:
 
 ## Steps
 ### Specify What is Wanted
-1. The user collects URLs for crawl indices in a text file -- one file per line. See an [example crawls.txt file](examples/crawls.txt).
-2. At a minimum, the user defines a few parameters in a JSON file (`config.json`, for example).
+1. The user collects URLs for crawl indices in a text file -- one file per line. See the [CommonCrawl blog](https://commoncrawl.org/connect/blog/) for these index URL lists per crawl, and [example crawls.txt file](examples/crawls.txt) for an example input file for this fetcher.
+1. At a minimum, the user defines a few parameters in a JSON file (`config.json`, for example).
 
-In the following, we have given an example for extracting all files identified as `mp4` files. 
+In the following, we have given a minimal example for extracting all files identified as `mp4` files. 
 
 The `indexPathsFile` is the file described in step 1. The `recordSelector` tells
 the fetcher which records to process.  The following requires that the URL have a status of `200`
