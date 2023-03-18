@@ -28,9 +28,9 @@ truncated files from the original URLs.
 
 The index files and the compound WARC files are accessible via `S3` (`s3://commoncrawl/`) and HTTPS (`https://data.commoncrawl.org/`).
 
-Users may extract individual gzipped WARC files with an HTTP range query from the compound WARC files.
+Users may extract individual gzipped WARC files with an HTTP/S3 range query from the compound WARC files.
 
-To ease access to files, Common Crawl publishes index files, 300 per crawl totalling roughly 300GB compressed/1TB uncompressed.
+To ease access to files, Common Crawl publishes index files, 300 per crawl, totalling 300GB compressed/1TB uncompressed.
 Each line of these index files stores information about a fetch of a single URL:
 
  1. the URL in a format optimized for sorting by host and domain
@@ -42,7 +42,7 @@ This is an example of a line:
 app,web,hurmaninvesterarimli)/89132/31224.html 20230208165905 {"url": "https://hurmaninvesterarimli.web.app/89132/31224.html", "mime": "text/html", "mime-detected": "text/html", "status": "200", "digest": "AQTOHAB777KB7F6E4GRMPNY2IGLGUA2K", "length": "6615", "offset": "325152484", "filename": "crawl-data/CC-MAIN-2023-06/segments/1674764500837.65/warc/CC-MAIN-20230208155417-20230208185417-00224.warc.gz", "charset": "UTF-8", "languages": "slk,eng,spa"}
 ```
 
-The JSON object for some records includes the following:
+The JSON object above:
 ```
 {
   "charset": "UTF-8",
@@ -57,22 +57,22 @@ The JSON object for some records includes the following:
   "url": "https://hurmaninvesterarimli.web.app/89132/31224.html"
 }
 ```
-1. `charset` -- what the http header claimed the charset was
+1. `charset` -- what the http header claimed the charset was (???)
 2. `digest` -- the BASE32-encoded SHA1 of the file
-3. `filename` -- is the file as stored in `S3` from which one can extract this file's WARC
+3. `filename` -- the name of the compound WARC file as stored in `S3` which contains this individual file's WARC
 4. `languages` -- languages as identified by (???)
-5. `length` -- this is the length of the compressed WARC file
+5. `length` -- length of the compressed WARC file
 6. `mime` -- what the http header claimed was the content-type
-7. `mime-detected` -- what the file was identified as by Apache Tika
-8. `offset` -- this is the offset in the file defined in `filename` where this files WARC starts
+7. `mime-detected` -- mime type as detected by Apache Tika
+8. `offset` -- offset in the compound WARC where this individual WARC file starts
 9. `status` -- the http status returned during the fetch
 10. `redirect` -- (not included in the example) if a `302`, the redirect URL is stored
-11. `truncated` -- (not included in the example) if the file was truncated, there's a value here. The most common is `length`, but there are other reasons why a file may be truncated
+11. `truncated` -- (not included in the example) if the file was truncated, this is populated with a cause. The most common cause is `length`.
 11. `url` -- the target URL for this file
 
 ## Steps to run the fetcher
 ### Specify What is Wanted
-1. The user collects URLs for crawl indices in a text file -- one file per line. See the [CommonCrawl blog](https://commoncrawl.org/connect/blog/) for these index URL lists per crawl, and the [example crawls.txt file](examples/crawls.txt) for an example input file for this fetcher.
+1. The user collects URLs for crawl indices in a text file -- one file per line. See the [CommonCrawl blog](https://commoncrawl.org/connect/blog/) for these index URL lists per crawl, and the [example crawls.txt file](examples/crawls.txt) for an example input file for this fetcher.  **NOTE** We'll be moving this configuration into the config.json file soon.
 1. At a minimum, the user defines a few parameters in a JSON file ([minimal-config](examples/minimal-config.json), for example).
 
 In the following, we have given a minimal example for extracting all files identified as `mp4` files. 
@@ -120,7 +120,7 @@ The commandline:
 
 This fetcher will extract non-truncated `mp4` files from CommonCrawl's compound WARC files 
 and put the `mp4` files in the `docs/` directory.  Further the fetcher
-will write a file of URLs for the `mp4` files that CommonCrawl truncated
+will write the URLs for the `mp4` files that CommonCrawl truncated
 to a file named `urls-for-truncated-files.txt` for later re-fetching.
 
 ### Refetch Truncated Files
@@ -134,7 +134,7 @@ extremely scaleable and robust (**it powers Common Crawl!**), and it records the
 for each fetch.
 
 ## Building
-Once this project has reached an ALPHA stage, releases will be available on github.  
+Once this project has reached an BETA stage, releases will be available on github.  
 Until then, you'll need git, Java JDK >= 11 and a recent version of Maven installed.
 
 1. `git clone https://github.com/tballison/commoncrawl-fetcher-lite`
@@ -154,14 +154,13 @@ We will likely add access to `S3` resources in the future.
 
 > **Warning!!!**
 > AWS throttles download rates. This code is designed with back-off logic so that it will pause 
-> if it gets a throttle warning from AWS. While this code is multi-threaded,
-> it is not useful to run more than about 3 threads.
+> if it gets a throttle warning from AWS. While this code is multi-threaded, it is not useful to run more than about 3 threads.
 
 ## Roadmap
 
-Some features that could be added are included below.
+Please open bug reports and issues to help prioritize future development.
 
-Please open issues to help prioritize future development.
+Some features that could be added are included below.
 
 1. Allow reads and writes in `S3`.
 2. Add more features to the record selector -- handle numeric values (e.g. `int`) and allow for `gt`, `gte` and `range` options
