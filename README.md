@@ -20,10 +20,10 @@ Common Crawl crawls a large portion of the internet each month (roughly 3 billio
 
 Common Crawl packages the raw files inside [WARC](https://en.wikipedia.org/wiki/Web_ARChive) files, each of which is gzipped and then 
 appended to other gzipped WARC files to create compound WARC files stored in AWS's S3 buckets.  
-For a single crawl, there are roughly 90,000 compound WARC files, each roughly 1 GB in size.  
+For a single crawl, there are ~90,000 compound WARC files, each ~1 GB in size.  
 Uncompressed, a single's month crawl can weigh in at ~400TiB.
 
-Common Crawl truncates files at **1MB**. Researchers who want complete files must refetch
+>**Note** Common Crawl truncates files at **1MB**. Researchers who want complete files must refetch
 truncated files from the original URLs.
 
 The index files and the compound WARC files are accessible via `S3` (`s3://commoncrawl/`) and HTTPS (`https://data.commoncrawl.org/`).
@@ -70,10 +70,10 @@ The JSON object for some records includes the following:
 11. `truncated` -- (not included in the example) if the file was truncated, there's a value here. The most common is `length`, but there are other reasons why a file may be truncated
 11. `url` -- the target URL for this file
 
-## Steps
+## Steps to run the fetcher
 ### Specify What is Wanted
-1. The user collects URLs for crawl indices in a text file -- one file per line. See the [CommonCrawl blog](https://commoncrawl.org/connect/blog/) for these index URL lists per crawl, and [example crawls.txt file](examples/crawls.txt) for an example input file for this fetcher.
-1. At a minimum, the user defines a few parameters in a JSON file (`config.json`, for example).
+1. The user collects URLs for crawl indices in a text file -- one file per line. See the [CommonCrawl blog](https://commoncrawl.org/connect/blog/) for these index URL lists per crawl, and the [example crawls.txt file](examples/crawls.txt) for an example input file for this fetcher.
+1. At a minimum, the user defines a few parameters in a JSON file ([minimal-config](examples/minimal-config.json), for example).
 
 In the following, we have given a minimal example for extracting all files identified as `mp4` files. 
 
@@ -116,12 +116,12 @@ There are many configuration options -- see [ConfiguringTheFetch](ConfiguringThe
 Users must have Java (>= 11) installed.  To check your version: `java -version`.
 
 The commandline:
-`java -jar commoncrawl-fetcher-lite-X.Y.Z.jar config.json`
+`java -jar commoncrawl-fetcher-lite-X.Y.Z.jar minimal-config.json`
 
-This fetcher will extract non-truncated `mp4` files from CommonCrawl's large WARC files 
+This fetcher will extract non-truncated `mp4` files from CommonCrawl's compound WARC files 
 and put the `mp4` files in the `docs/` directory.  Further the fetcher
-will write a file of URLs for the `mp4` files that but were CommonCrawl truncated
-to a file named `urls-for-truncated-files.txt`.
+will write a file of URLs for the `mp4` files that CommonCrawl truncated
+to a file named `urls-for-truncated-files.txt` for later re-fetching.
 
 ### Refetch Truncated Files
 There are many options for this.  The simplest might be [wget](https://www.gnu.org/software/wget/):
@@ -129,14 +129,15 @@ There are many options for this.  The simplest might be [wget](https://www.gnu.o
 
 See also options for [curl](https://curl.se/).  
 
-The [Nutch project](https://nutch.apache.org/) may be overkill, but it is
-extremely robust (**it powers Common Crawl!**), and it records the WARC information
+The [Nutch project](https://nutch.apache.org/) may be excessive, but it is
+extremely scaleable and robust (**it powers Common Crawl!**), and it records the WARC information
 for each fetch.
 
 ## Building
-Once this project has reached an ALPHA stage, releases will be available on github.  Until then, you'll need Java JDK >= 11 and a recent version of Maven installed.
+Once this project has reached an ALPHA stage, releases will be available on github.  
+Until then, you'll need git, Java JDK >= 11 and a recent version of Maven installed.
 
-1. `clone https://github.com/tballison/commoncrawl-fetcher-lite`
+1. `git clone https://github.com/tballison/commoncrawl-fetcher-lite`
 1. `cd commoncrawl-fetcher-lite`
 1. `mvn install`
 
@@ -152,10 +153,9 @@ This has been initially designed for users working outside Amazon's environment.
 We will likely add access to `S3` resources in the future.
 
 > **Warning!!!**
-AWS throttles download rates. This code is designed with back-off logic so that it will pause 
-> if it gets a throttle warning from AWS.
-
-This code is multithreaded.  However, given AWS's throttling, it is not useful to run more than about 3 threads.
+> AWS throttles download rates. This code is designed with back-off logic so that it will pause 
+> if it gets a throttle warning from AWS. While this code is multi-threaded,
+> it is not useful to run more than about 3 threads.
 
 ## Roadmap
 
