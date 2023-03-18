@@ -21,7 +21,7 @@ Common Crawl crawls a large portion of the internet each month (roughly 3 billio
 Common Crawl packages the raw files inside [WARC](https://en.wikipedia.org/wiki/Web_ARChive) files, each of which is gzipped and then 
 appended to other gzipped WARC files to create very large files stored in AWS's S3 buckets.
 
-The project truncates files at **1MB**. Researchers who want complete files must refetch
+Common Crawl truncates files at **1MB**. Researchers who want complete files must refetch
 truncated files from the original URLs.
 
 The index files and these very large files are accessible via `S3` and HTTPS.
@@ -111,7 +111,7 @@ There are many configuration options -- see [ConfiguringTheFetch](ConfiguringThe
 ```
 
 ### Run the Code
-Users must have Java (>= 11) installed.
+Users must have Java (>= 11) installed.  To check your version: `java -version`.
 
 The commandline:
 `java -jar commoncrawl-fetcher-lite-X.Y.Z.jar config.json`
@@ -130,6 +130,15 @@ See also options for [curl](https://curl.se/).
 The [Nutch project](https://nutch.apache.org/) may be overkill, but it is
 extremely robust (**it powers Common Crawl!**), and it records the WARC information
 for each fetch.
+
+## Building
+Once this project has reached an ALPHA stage, releases will be available on github.  Until then, you'll need Java JDK >= 11 and a recent version of Maven installed.
+
+1. `clone https://github.com/tballison/commoncrawl-fetcher-lite`
+1. `cd commoncrawl-fetcher-lite`
+1. `mvn install`
+
+The jar file will be built in `target/`.
 
 ## Design Goals
 This is intended to be light-weight.  The current design does not store 
