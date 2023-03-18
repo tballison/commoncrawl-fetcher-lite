@@ -19,19 +19,21 @@ make use of this fetcher.
 Common Crawl crawls a large portion of the internet each month (roughly 3 billion URLs).
 
 Common Crawl packages the raw files inside [WARC](https://en.wikipedia.org/wiki/Web_ARChive) files, each of which is gzipped and then 
-appended to other gzipped WARC files to create very large files stored in AWS's S3 buckets.
+appended to other gzipped WARC files to create compound WARC files stored in AWS's S3 buckets.  
+For a single crawl, there are roughly 90,000 compound WARC files, each roughly 1 GB in size.  
+Uncompressed, a single's month crawl can weigh in at ~400TiB.
 
 Common Crawl truncates files at **1MB**. Researchers who want complete files must refetch
 truncated files from the original URLs.
 
-The index files and these very large files are accessible via `S3` and HTTPS.
+The index files and the compound WARC files are accessible via `S3` (`s3://commoncrawl/`) and HTTPS (`https://data.commoncrawl.org/`).
 
-Users may extract individual WARC files with an HTTP range query.
+Users may extract individual gzipped WARC files with an HTTP range query from the compound WARC files.
 
-To ease access to files, Common Crawl publishes index files, roughly 300GB compressed/1TB uncompressed per crawl.
+To ease access to files, Common Crawl publishes index files, 300 per crawl totalling roughly 300GB compressed/1TB uncompressed.
 Each line of these index files stores information about a fetch of a single URL:
 
- 1. the URL in an archival format
+ 1. the URL in a format optimized for sorting by host and domain
  2. a timestamp
  3. a JSON object
 
@@ -150,8 +152,8 @@ This has been initially designed for users working outside Amazon's environment.
 We will likely add access to `S3` resources in the future.
 
 > **Warning!!!**
-AWS throttles the rates at which people may pull data through the public https option.
-This code is designed with back-off logic so that it will pause if it gets a throttle warning from AWS.
+AWS throttles download rates. This code is designed with back-off logic so that it will pause 
+> if it gets a throttle warning from AWS.
 
 This code is multithreaded.  However, given AWS's throttling, it is not useful to run more than about 3 threads.
 
