@@ -80,7 +80,7 @@ the fetcher which records to process.  The following requires that the URL have 
 and that the `mime_detected` value is `video/mp4` or `video/quicktime`.
 
 We have included the `dryRun` parameter in the example.  This reports
-files that it would have extracted from Common Crawl if the `dryRun` had been set to true.
+files that it would have extracted from Common Crawl if the `dryRun` had been set to `false`.
 
 There are many configuration options -- see [ConfiguringTheFetch](ConfiguringTheFetch.md) for more details.
 
