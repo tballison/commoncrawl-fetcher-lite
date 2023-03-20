@@ -59,10 +59,10 @@ public class FileFromCCWarcFetcher {
     private final TargetPathRewriter targetPathRewriter;
     private Base32 base32 = new Base32();
 
-    public FileFromCCWarcFetcher(StreamEmitter emitter, TargetPathRewriter targetPathRewriter) throws TikaConfigException {
-        this.emitter = emitter;
-        this.fetcher = new HTTPFetchWrapper();
-        this.targetPathRewriter = targetPathRewriter;
+    public FileFromCCWarcFetcher(FetcherConfig fetcherConfig) throws TikaConfigException {
+        this.emitter = fetcherConfig.getEmitter();
+        this.fetcher = new HTTPFetchWrapper(fetcherConfig.getThrottleSeconds());
+        this.targetPathRewriter = fetcherConfig.getTargetPathRewriter();
     }
     public void fetchToPath(CCIndexRecord record) throws InterruptedException {
 

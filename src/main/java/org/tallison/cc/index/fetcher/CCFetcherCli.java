@@ -86,7 +86,7 @@ public class CCFetcherCli {
                 new ExecutorCompletionService<>(executorService);
 
         IndexPathsReader indexPathsReader =
-                new IndexPathsReader(fetcherConfig.getIndexPathsFile(), indexPathsList);
+                new IndexPathsReader(fetcherConfig, indexPathsList);
 
         TruncatedURLWriter truncatedURLWriter =
                 new TruncatedURLWriter(truncatedUrls, fetcherConfig.getTruncatedUrlsFile());
@@ -98,7 +98,7 @@ public class CCFetcherCli {
             for (int i = 0; i < fetcherConfig.getNumThreads(); i++) {
                 FetchLiteRecordProcessor processor =
                         new FetchLiteRecordProcessor(fetcherConfig, truncatedUrls, counter);
-                executorCompletionService.submit(new IndexWorker(indexPathsList, processor));
+                executorCompletionService.submit(new IndexWorker(fetcherConfig, indexPathsList, processor));
             }
 
 
@@ -153,11 +153,11 @@ public class CCFetcherCli {
 
         private final HTTPFetchWrapper httpFetchWrapper;
 
-        IndexWorker(ArrayBlockingQueue<String> indexUrls,
+        IndexWorker(FetcherConfig fetcherConfig, ArrayBlockingQueue<String> indexUrls,
                     AbstractRecordProcessor recordProcessor) throws TikaException {
             this.indexUrls = indexUrls;
             this.recordProcessor = recordProcessor;
-            httpFetchWrapper = new HTTPFetchWrapper();
+            httpFetchWrapper = new HTTPFetchWrapper(fetcherConfig.getThrottleSeconds());
         }
 
         @Override
@@ -241,11 +241,11 @@ public class CCFetcherCli {
 
         HTTPFetchWrapper httpFetchWrapper;
 
-        private IndexPathsReader(Path indexPathLists, ArrayBlockingQueue<String> indexFiles)
+        private IndexPathsReader(FetcherConfig fetcherConfig, ArrayBlockingQueue<String> indexFiles)
                 throws TikaException {
-            this.indexPathLists = indexPathLists;
+            this.indexPathLists = fetcherConfig.getIndexPathsFile();
             this.indexFiles = indexFiles;
-            httpFetchWrapper = new HTTPFetchWrapper();
+            httpFetchWrapper = new HTTPFetchWrapper(fetcherConfig.getThrottleSeconds());
         }
 
         @Override

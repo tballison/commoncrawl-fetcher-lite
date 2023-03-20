@@ -36,20 +36,17 @@ import org.slf4j.LoggerFactory;
 
 public class HTTPFetchWrapper {
 
+    public static final long[] DEFAULT_THROTTLE_SECONDS = new long[] {30, 120, 600};
 
     private static Logger LOGGER = LoggerFactory.getLogger(HTTPFetchWrapper.class);
 
     private HttpFetcher fetcher = new HttpFetcher();
-    private int maxTriesOn503 = 3;
 
     //backoff
-    private long[] throttleSeconds = new long[] {30, 120, 600};
+    private long[] throttleSeconds = DEFAULT_THROTTLE_SECONDS;
 
-    public HTTPFetchWrapper() throws TikaConfigException {
+    public HTTPFetchWrapper(long[] throttleSeconds) throws TikaConfigException {
         fetcher.initialize(Collections.EMPTY_MAP);
-    }
-
-    public void setThrottleStepsInSeconds(long[] throttleSeconds) {
         this.throttleSeconds = throttleSeconds;
     }
 

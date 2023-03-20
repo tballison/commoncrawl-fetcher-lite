@@ -6,6 +6,7 @@
   "indexPathsFile":"crawls.txt",
   "filesDirectory":"docs",
   "truncatedUrlsFile":"truncated.txt",
+  "throttleSeconds": [30, 120, 600, 3600],
   "recordSelector": {
     "should": {
       "mime_detected": [

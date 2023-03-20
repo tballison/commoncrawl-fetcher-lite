@@ -21,6 +21,7 @@ import java.nio.file.Paths;
 
 import org.apache.tika.pipes.emitter.StreamEmitter;
 import org.apache.tika.pipes.emitter.fs.FileSystemEmitter;
+import org.tallison.cc.index.io.HTTPFetchWrapper;
 import org.tallison.cc.index.io.TargetPathRewriter;
 import org.tallison.cc.index.selector.RecordSelector;
 
@@ -45,6 +46,8 @@ public class FetcherConfig {
     private String targetPathPattern = "";
 
     private boolean dryRun = false;
+
+    private long[] throttleSeconds = HTTPFetchWrapper.DEFAULT_THROTTLE_SECONDS;
 
     private RecordSelector recordSelector = RecordSelector.ACCEPT_ALL_RECORDS;
 
@@ -145,5 +148,9 @@ public class FetcherConfig {
 
     public RecordSelector getRecordSelector() {
         return recordSelector;
+    }
+
+    public long[] getThrottleSeconds() {
+        return throttleSeconds;
     }
 }

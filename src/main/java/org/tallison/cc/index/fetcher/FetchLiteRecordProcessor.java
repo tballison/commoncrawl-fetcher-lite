@@ -44,8 +44,7 @@ public class FetchLiteRecordProcessor extends AbstractRecordProcessor {
         this.fetcherConfig = fetcherConfig;
         this.truncatedUrls = truncatedUrls;
         this.counter = counter;
-        this.fileFromCCWarcFetcher = new FileFromCCWarcFetcher(
-                fetcherConfig.getEmitter(), fetcherConfig.getTargetPathRewriter());
+        this.fileFromCCWarcFetcher = new FileFromCCWarcFetcher(fetcherConfig);
     }
 
     @Override
