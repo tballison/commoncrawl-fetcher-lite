@@ -48,6 +48,7 @@ A full config file would include:
   "truncatedUrlsFile": "urls-for-truncated-files.txt"
 }
 ```
+**TODO**: come up with a logical `must` and `must_not` example.  The above is meaningless -- if a record must match 200, it will, obv, not match 300.
 
 ## DryRun
 If set to `true`, this processes all the records but does not extract the
@@ -55,7 +56,7 @@ non-truncated files.  This can be useful for counting files.
 
 ## MaxRecords, MaxFilesExtracted, MaxFilesTruncated
 If these are all set to `-1`, or they are not included, the fetcher will
-run against every index record.
+run against every index record.  A full run for a single month's crawl downloads nearly ~300GB of index files.
 
 If any one of the following is hit, the fetcher stops.
 
@@ -94,9 +95,9 @@ These are applied to the index records described in the [README](README.md).
 
 ### MUST, MUST_NOT, SHOULD
 The record selector applies the `must_not` matches first (if the element exists).  If any of those
-clauses match a record, the record is passed over.  If the `must` element exists, the record selector requires that all
+clauses match a record, the record is ignored.  If the `must` element exists, the record selector requires that all
 of its clauses are true for a given record.  If any of the `must` clauses do not apply, the record is
-passed over.  Finally, the record selector requires that at least one of the `should` clauses applies to 
+ignored.  Finally, the record selector requires that at least one of the `should` clauses applies to 
 a record.
 
 ### Fields
@@ -105,17 +106,19 @@ a record.
 2. `mime_detected`
 1. `status`
 
+**TODO:** add the other available fields, url, etc.
+
 ### MATCH AND PATTERN Clauses
 
 A `match` is an exact full string match.  It may have a `case_sensitive` flag
-that would allow for matches irrespective of case.
+that, when set to `false` would allow case_insensitive matches -- default is `true`.
 
 A `pattern` is a regular expression.
 
 Both `match` and `pattern` clauses may include a `sample` element.  This means
 that if there is a match or pattern-find on an element, the selector will randomly select
-a record that percentage of the time.  For example if you wanted some XHTML (say 3,000 from a single
-crawl), but not 3 billion pages, you could use:
+a record that percentage of the time.  For example if you wanted some XHTML (say ~3,000 from a single
+crawl), but not nearly all of the 3 billion pages, you could use:
 
 ```
 ...

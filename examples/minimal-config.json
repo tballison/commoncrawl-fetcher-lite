@@ -1,0 +1,23 @@
+{
+  "dryRun" : true,
+  "indexPathsFile": "crawls.txt",
+  "recordSelector": {
+    "must": {
+      "status": [
+        {
+          "match": "200"
+        }
+      ]
+    },
+    "should": {
+      "mime_detected": [
+        {
+          "match": "video/mp4"
+        },
+        {
+          "match": "video/quicktime"
+        }
+      ]
+    }
+  }
+}
