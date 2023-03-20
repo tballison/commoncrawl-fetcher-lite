@@ -64,7 +64,7 @@ public class FileFromCCWarcFetcher {
         this.fetcher = new HTTPFetchWrapper();
         this.targetPathRewriter = targetPathRewriter;
     }
-    public void fetchToPath(CCIndexRecord record) {
+    public void fetchToPath(CCIndexRecord record) throws InterruptedException {
 
         LOGGER.debug("going to fetch {} {}->{}", record.getFilename(),
                 record.getOffset(), record.getLength());
@@ -161,13 +161,11 @@ public class FileFromCCWarcFetcher {
         }
     }
 
-    private byte[] fetchWarcBytes(FetchEmitTuple t) throws TikaException, IOException {
+    private byte[] fetchWarcBytes(FetchEmitTuple t) throws TikaException, InterruptedException, IOException {
 
         ByteArrayOutputStream bos = new ByteArrayOutputStream();
         try (InputStream is = fetcher.fetch(t)) {
             IOUtils.copy(is, bos);
-        } catch (Exception e) {
-            throw e;
         }
         return bos.toByteArray();
     }

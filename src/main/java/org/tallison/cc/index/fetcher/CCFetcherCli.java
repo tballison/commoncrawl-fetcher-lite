@@ -60,7 +60,7 @@ public class CCFetcherCli {
     private static final Integer INDEX_WORKER_ID = 1;
     private static final Integer INDEX_READER_ID = 2;
     private static final Integer TRUNCATED_WRITER_ID = 3;
-    private static Logger LOGGER = LoggerFactory.getLogger(CCFetcherCli.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(CCFetcherCli.class);
 
     public static void main(String[] args) throws Exception {
         FetcherConfig fetcherConfig =
@@ -108,11 +108,11 @@ public class CCFetcherCli {
                 if (future != null) {
                     Integer f = future.get();
                     LOGGER.debug("completed {}", f);
-                    if (f == INDEX_WORKER_ID) {
+                    if (f.equals(INDEX_WORKER_ID)) {
                         finishedWorkers++;
-                    } else if (f == INDEX_READER_ID) {
+                    } else if (f.equals(INDEX_READER_ID)) {
                         LOGGER.info("Index paths reader successfully completed");
-                    } else if (f == TRUNCATED_WRITER_ID) {
+                    } else if (f.equals(TRUNCATED_WRITER_ID)) {
                         LOGGER.warn("Truncated writer finished but should not have!!!");
                     }
                 }
@@ -138,7 +138,7 @@ public class CCFetcherCli {
             LOGGER.error("main loop exception", e);
             throw new RuntimeException(e);
         } catch (InterruptedException e) {
-            LOGGER.error("main loop interrupted exception", e);
+            LOGGER.warn("main loop interrupted exception", e);
             throw new RuntimeException(e);
         } finally {
             executorService.shutdown();
@@ -165,9 +165,9 @@ public class CCFetcherCli {
             boolean shouldContinue = true;
             while (shouldContinue) {
 
-                String indexUrl = indexUrls.poll(30, TimeUnit.MINUTES);
+                String indexUrl = indexUrls.poll(60, TimeUnit.MINUTES);
                 if (indexUrl == null) {
-                    throw new TimeoutException("waited 5 minutes for a new record");
+                    throw new TimeoutException("waited 60 minutes for a new record");
                 }
 
                 if (indexUrl == STOP_SEMAPHORE) {
@@ -182,7 +182,8 @@ public class CCFetcherCli {
             return INDEX_WORKER_ID;
         }
 
-        private boolean processFile(String url, AbstractRecordProcessor recordProcessor) {
+        private boolean processFile(String url, AbstractRecordProcessor recordProcessor)
+                throws InterruptedException {
             url = FetcherConfig.CC_HTTPS_BASE + url;
             long start = System.currentTimeMillis();
             LOGGER.info("starting to process index gz: {}", url);
@@ -272,8 +273,6 @@ public class CCFetcherCli {
                     }
                     line = reader.readLine();
                 }
-            } catch (InterruptedException e) {
-                LOGGER.debug("c'est la vie. index reader was interrupted");
             } finally {
                 //hangs permanently
                 indexFiles.put(STOP_SEMAPHORE);

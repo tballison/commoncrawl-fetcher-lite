@@ -14,15 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.tallison.cc.index.io;
 
-package org.tallison.cc.index;
-
-
-import java.io.IOException;
-
-public interface IndexRecordProcessor {
-
-    public boolean process(String json) throws IOException, InterruptedException;
-
-    public void close() throws IOException;
+/**
+ * This is thrown when our throttling strategy fails and aws
+ * is still returning 503 -- please slow down
+ */
+public class ThrottleException extends RuntimeException {
 }

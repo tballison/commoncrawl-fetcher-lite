@@ -43,13 +43,18 @@ public class HTTPFetchWrapper {
     private int maxTriesOn503 = 3;
 
     //backoff
-    private long[] sleepMs = new long[]{0, 30000, 120000, 600000};
+    private long[] throttleSeconds = new long[] {30, 120, 600};
 
     public HTTPFetchWrapper() throws TikaConfigException {
         fetcher.initialize(Collections.EMPTY_MAP);
     }
 
-    public TikaInputStream openStream(String url) throws IOException, TikaException {
+    public void setThrottleStepsInSeconds(long[] throttleSeconds) {
+        this.throttleSeconds = throttleSeconds;
+    }
+
+    public TikaInputStream openStream(String url)
+            throws IOException, InterruptedException, TikaException {
         FetchEmitTuple fetchEmitTuple = new FetchEmitTuple(
                 url,
                 new FetchKey("", url),
@@ -58,10 +63,10 @@ public class HTTPFetchWrapper {
         return fetch(fetchEmitTuple);
     }
 
-    public TikaInputStream fetch(FetchEmitTuple t) throws IOException, TikaException {
+    public TikaInputStream fetch(FetchEmitTuple t)
+            throws IOException, InterruptedException, TikaException {
         int tries = 0;
-        IOException ex = null;
-        while (tries++ < maxTriesOn503) {
+        while (tries < throttleSeconds.length) {
             try {
                 return _fetch(t);
             } catch (IOException e) {
@@ -70,21 +75,18 @@ public class HTTPFetchWrapper {
                 }
                 Matcher m = Pattern.compile("bad status code: (\\d+)").matcher(e.getMessage());
                 if (m.find() && m.group(1).equals("503")) {
-                    long sleep = sleepMs[tries];
-                    LOGGER.warn("got backoff warning: {}. Will sleep {} ms", e.getMessage(), sleep);
+                    long sleepMs = 1000 * throttleSeconds[tries];
+                    LOGGER.warn("got backoff warning (#{}): {}. Will sleep {} seconds",
+                            tries + 1, e.getMessage(), throttleSeconds);
                     //sleep, back off
-                    try {
-                        Thread.sleep(sleep);
-                    } catch (InterruptedException exc) {
-                        throw ex;
-                    }
-                    ex = e;
+                    Thread.sleep(sleepMs);
                 } else {
                     throw e;
                 }
             }
+            tries++;
         }
-        throw ex;
+        throw new ThrottleException();
     }
 
     private TikaInputStream _fetch(FetchEmitTuple t) throws IOException, TikaException {
@@ -94,7 +96,7 @@ public class HTTPFetchWrapper {
             return (TikaInputStream) fetcher.fetch(fetchKey.getFetchKey(), fetchKey.getRangeStart(),
                     fetchKey.getRangeEnd(), metadata);
         } else {
-            return (TikaInputStream)fetcher.fetch(fetchKey.getFetchKey(), metadata);
+            return (TikaInputStream) fetcher.fetch(fetchKey.getFetchKey(), metadata);
         }
 
     }

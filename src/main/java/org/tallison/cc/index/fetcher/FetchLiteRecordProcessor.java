@@ -49,7 +49,7 @@ public class FetchLiteRecordProcessor extends AbstractRecordProcessor {
     }
 
     @Override
-    public boolean process(String json) throws IOException {
+    public boolean process(String json) throws IOException, InterruptedException {
         long totalRead = counter.getRecordsRead().incrementAndGet();
         if (totalRead % 100000 == 0) {
             LOGGER.info("processed: {}", counter);
@@ -78,17 +78,12 @@ public class FetchLiteRecordProcessor extends AbstractRecordProcessor {
                 return false;
             }
             //potentially hangs
-            try {
                 String url = r.getUrl();
                 if (StringUtils.isBlank(url)) {
                     //do nothing
                 } else {
                     truncatedUrls.put(url);
                 }
-            } catch (InterruptedException e) {
-                LOGGER.debug("interrupted while trying to put to truncated urls");
-                return false;
-            }
             return true;
         } else {
             long extracted = counter.getFilesExtracted().incrementAndGet();
@@ -106,7 +101,7 @@ public class FetchLiteRecordProcessor extends AbstractRecordProcessor {
         }
     }
 
-    private void fetchBytes(CCIndexRecord r) {
+    private void fetchBytes(CCIndexRecord r) throws InterruptedException {
         fileFromCCWarcFetcher.fetchToPath(r);
     }
 
