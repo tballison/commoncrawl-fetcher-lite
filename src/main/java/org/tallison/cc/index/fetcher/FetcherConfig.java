@@ -18,16 +18,31 @@ package org.tallison.cc.index.fetcher;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Collections;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import org.apache.tika.config.Initializable;
+import org.apache.tika.exception.TikaConfigException;
 import org.apache.tika.pipes.emitter.StreamEmitter;
 import org.apache.tika.pipes.emitter.fs.FileSystemEmitter;
-import org.tallison.cc.index.io.HTTPFetchWrapper;
+import org.apache.tika.pipes.fetcher.Fetcher;
+import org.apache.tika.pipes.fetcher.RangeFetcher;
+import org.apache.tika.pipes.fetcher.s3.S3Fetcher;
+import org.tallison.cc.index.IndexIterator;
+import org.tallison.cc.index.io.BackoffHttpFetcher;
 import org.tallison.cc.index.io.TargetPathRewriter;
 import org.tallison.cc.index.selector.RecordSelector;
 
 public class FetcherConfig {
 
-    public static String CC_HTTPS_BASE = "https://data.commoncrawl.org/";
+    public static String CC_HTTPS_BASE = "https://data.commoncrawl.org";
+
+    public static String CC_S3_BUCKET = "commoncrawl";
+
+    public static String CC_REGION = "us-east-1";
+
+    public static long[] DEFAULT_THROTTLE_SECONDS = new long[]{30, 120, 600, 1800};
     private int numThreads = 2;
     //maximum records to read
     private long maxRecords = -1;
@@ -47,16 +62,16 @@ public class FetcherConfig {
 
     private boolean dryRun = false;
 
-    private long[] throttleSeconds = HTTPFetchWrapper.DEFAULT_THROTTLE_SECONDS;
-
     private RecordSelector recordSelector = RecordSelector.ACCEPT_ALL_RECORDS;
+
+    @JsonProperty("indices")
+    private IndexIterator indexIterator;
+
+    @JsonProperty("fetcher")
+    private FetchConfig fetchConfig;
 
     public static String getCcHttpsBase() {
         return CC_HTTPS_BASE;
-    }
-
-    public static void setCcHttpsBase(String ccHttpsBase) {
-        CC_HTTPS_BASE = ccHttpsBase;
     }
 
     public int getNumThreads() {
@@ -150,7 +165,40 @@ public class FetcherConfig {
         return recordSelector;
     }
 
-    public long[] getThrottleSeconds() {
-        return throttleSeconds;
+    public IndexIterator getIndexIterator() {
+        return indexIterator;
+    }
+
+    public RangeFetcher newFetcher() throws TikaConfigException {
+        return fetchConfig.newFetcher();
+    }
+
+    private static class FetchConfig {
+        private final String profile;
+        private final long[] throttleSeconds;
+        @JsonCreator
+        public FetchConfig(@JsonProperty("profile") String profile,
+                           @JsonProperty("throttleSeconds") long[] throttleSeconds) {
+            this.profile = profile;
+            this.throttleSeconds = (throttleSeconds == null) ?
+                    DEFAULT_THROTTLE_SECONDS : throttleSeconds;
+        }
+
+        RangeFetcher newFetcher() throws TikaConfigException {
+            RangeFetcher fetcher;
+            if (profile == null) {
+                fetcher = new BackoffHttpFetcher(throttleSeconds);
+            } else {
+                fetcher = new S3Fetcher();
+                ((S3Fetcher)fetcher).setProfile(profile);
+                ((S3Fetcher)fetcher).setCredentialsProvider("profile");
+                ((S3Fetcher)fetcher).setBucket(FetcherConfig.CC_S3_BUCKET);
+                ((S3Fetcher)fetcher).setRegion(FetcherConfig.CC_REGION);
+            }
+            if (fetcher instanceof Initializable) {
+                ((Initializable)fetcher).initialize(Collections.EMPTY_MAP);
+            }
+            return fetcher;
+        }
     }
 }

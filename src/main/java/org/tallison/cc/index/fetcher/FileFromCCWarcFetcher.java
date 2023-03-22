@@ -24,7 +24,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.Optional;
-import java.util.stream.Stream;
 import java.util.zip.GZIPInputStream;
 
 import org.apache.commons.codec.binary.Base32;
@@ -36,9 +35,9 @@ import org.apache.tika.io.TikaInputStream;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.pipes.FetchEmitTuple;
 import org.apache.tika.pipes.emitter.EmitKey;
-import org.apache.tika.pipes.emitter.Emitter;
 import org.apache.tika.pipes.emitter.StreamEmitter;
 import org.apache.tika.pipes.fetcher.FetchKey;
+import org.apache.tika.pipes.fetcher.RangeFetcher;
 import org.netpreserve.jwarc.MediaType;
 import org.netpreserve.jwarc.WarcPayload;
 import org.netpreserve.jwarc.WarcReader;
@@ -47,13 +46,13 @@ import org.netpreserve.jwarc.WarcResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tallison.cc.index.CCIndexRecord;
-import org.tallison.cc.index.io.HTTPFetchWrapper;
+import org.tallison.cc.index.io.BackoffHttpFetcher;
 import org.tallison.cc.index.io.TargetPathRewriter;
 
 public class FileFromCCWarcFetcher {
     private static Logger LOGGER = LoggerFactory.getLogger(FetchLiteRecordProcessor.class);
 
-    private HTTPFetchWrapper fetcher;
+    private RangeFetcher fetcher;
     private final StreamEmitter emitter;
 
     private final TargetPathRewriter targetPathRewriter;
@@ -61,16 +60,15 @@ public class FileFromCCWarcFetcher {
 
     public FileFromCCWarcFetcher(FetcherConfig fetcherConfig) throws TikaConfigException {
         this.emitter = fetcherConfig.getEmitter();
-        this.fetcher = new HTTPFetchWrapper(fetcherConfig.getThrottleSeconds());
+        this.fetcher = fetcherConfig.newFetcher();
         this.targetPathRewriter = fetcherConfig.getTargetPathRewriter();
     }
     public void fetchToPath(CCIndexRecord record) throws InterruptedException {
 
         LOGGER.debug("going to fetch {} {}->{}", record.getFilename(),
                 record.getOffset(), record.getLength());
-        String warcUrl = FetcherConfig.CC_HTTPS_BASE + record.getFilename();
         FetchEmitTuple t = new FetchEmitTuple(record.getFilename(),
-                new FetchKey("", warcUrl, record.getOffset(),
+                new FetchKey("", record.getFilename(), record.getOffset(),
                         record.getOffset() + record.getLength()-1),
                 new EmitKey()
         );
@@ -110,16 +108,16 @@ public class FileFromCCWarcFetcher {
         try {
             Files.copy(payload.get().body().stream(), tmp, StandardCopyOption.REPLACE_EXISTING);
             String targetDigest = null;
-            String sha1digest = "";
+            String base32Sha1 = "";
             try (InputStream is = Files.newInputStream(tmp)) {
-                sha1digest = base32.encodeAsString(DigestUtils.sha1(is));
+                base32Sha1 = base32.encodeAsString(DigestUtils.sha1(is));
             } catch (IOException e) {
                 LOGGER.warn("IOException during digesting: " + tmp.toAbsolutePath());
                 return;
             }
-            if (! sha1digest.equals(ccIndexRecord.getDigest())) {
+            if (! base32Sha1.equals(ccIndexRecord.getDigest())) {
                 LOGGER.warn("Bad digest for url={} ccindex={} sha1={}",
-                        id, ccIndexRecord.getDigest(), sha1digest);
+                        id, ccIndexRecord.getDigest(), base32Sha1);
             }
             //TODO: make digest and encoding configurable
             try (InputStream is = Files.newInputStream(tmp)) {
@@ -164,7 +162,9 @@ public class FileFromCCWarcFetcher {
     private byte[] fetchWarcBytes(FetchEmitTuple t) throws TikaException, InterruptedException, IOException {
 
         ByteArrayOutputStream bos = new ByteArrayOutputStream();
-        try (InputStream is = fetcher.fetch(t)) {
+        FetchKey k = t.getFetchKey();
+        try (InputStream is = fetcher.fetch(k.getFetchKey(),
+                k.getRangeStart(), k.getRangeEnd(), new Metadata())) {
             IOUtils.copy(is, bos);
         }
         return bos.toByteArray();

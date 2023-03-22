@@ -1,0 +1,42 @@
+{
+  "numThreads": 3,
+  "maxRecords": -1,
+  "maxFilesExtracted": 10000,
+  "maxFilesTruncated": -1,
+  "filesDirectory": "docs",
+  "truncatedUrlsFile": "truncated.txt",
+  "indices" : {
+    "profile": "my-profile",
+    "paths": [
+      "crawl-data/CC-MAIN-2023-06/cc-index.paths.gz",
+      "crawl-data/CC-MAIN-2022-49/cc-index.paths.gz"
+      ]
+  },
+  "fetcher": {
+    "profile": "my-profile"
+  },
+  "recordSelector": {
+    "should": {
+      "mime_detected": [
+        {
+          "match": "application/pdf",
+          "sample": 0.8
+        }
+      ]
+    },
+    "must": {
+      "status": [
+        {
+          "match": "200"
+        }
+      ]
+    },
+    "must_not" : {
+      "status": [
+        {
+          "match": "300"
+        }
+      ]
+    }
+  }
+}

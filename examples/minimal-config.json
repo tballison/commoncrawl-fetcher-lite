@@ -1,6 +1,11 @@
 {
   "dryRun" : true,
-  "indexPathsFile": "crawls.txt",
+  "indices": {
+    "paths": [
+      "crawl-data/CC-MAIN-2023-06/cc-index.paths.gz",
+      "crawl-data/CC-MAIN-2022-49/cc-index.paths.gz"
+    ]
+  },
   "recordSelector": {
     "must": {
       "status": [

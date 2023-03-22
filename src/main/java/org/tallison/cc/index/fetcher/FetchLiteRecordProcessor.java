@@ -72,7 +72,7 @@ public class FetchLiteRecordProcessor extends AbstractRecordProcessor {
         if (! StringUtils.isBlank(r.getTruncated())) {
             long truncated = counter.getTruncatedWritten().incrementAndGet();
             if (fetcherConfig.getMaxFilesTruncated() > -1 &&
-            truncated >= fetcherConfig.getMaxFilesTruncated()) {
+                truncated >= fetcherConfig.getMaxFilesTruncated()) {
                 LOGGER.info("hit max truncated files");
                 return false;
             }

@@ -1,12 +1,21 @@
 {
-  "numThreads":10,
+  "numThreads":3,
   "maxRecords":-1,
   "maxFilesExtracted":10000,
   "maxFilesTruncated":-1,
-  "indexPathsFile":"crawls.txt",
   "filesDirectory":"docs",
   "truncatedUrlsFile":"truncated.txt",
-  "throttleSeconds": [30, 120, 600, 3600],
+  "fetcher": {
+    "throttleSeconds": [ 30, 120, 600, 1800]
+  },
+  "indices" : {
+    "paths": [
+    "cc-index/collections/CC-MAIN-2023-06/indexes/cdx-00273.gz",
+    "cc-index/collections/CC-MAIN-2023-06/indexes/cdx-00274.gz",
+    "cc-index/collections/CC-MAIN-2023-06/indexes/cdx-00275.gz",
+    "cc-index/collections/CC-MAIN-2023-06/indexes/cdx-00276.gz"
+      ]
+  },
   "recordSelector": {
     "should": {
       "mime_detected": [

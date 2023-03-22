@@ -72,24 +72,30 @@ The JSON object above:
 
 ## Steps to run the fetcher
 ### Specify What is Wanted
-1. The user collects URLs for crawl indices in a text file -- one file per line. See the [CommonCrawl blog](https://commoncrawl.org/connect/blog/) for these index URL lists per crawl, and the [example crawls.txt file](examples/crawls.txt) for an example input file for this fetcher.  **NOTE** We'll be moving this configuration into the config.json file soon.
-1. At a minimum, the user defines a few parameters in a JSON file ([minimal-config](examples/minimal-config.json), for example).
+At a minimum, the user defines a few parameters in a JSON file ([minimal-config](examples/minimal-config.json), for example).
 
-In the following, we have given a minimal example for extracting all files identified as `mp4` files. 
+In the following, we have given a minimal example for extracting all files identified as `mp4` files
+from two crawls: `CC-MAIN-2023-06` and `CC-MAIN-2022-49`.  See the [CommonCrawl blog](https://commoncrawl.org/connect/blog/)
+for the names of crawls.
 
-The `indexPathsFile` is the file described in step 1. The `recordSelector` tells
+The `indices` element contains paths to the index lists for target crawls as described in step 1. The `recordSelector` tells
 the fetcher which records to process.  The following requires that the URL have a status of `200`
 and that the `mime_detected` value is `video/mp4` or `video/quicktime`.
 
-We have included the `dryRun` parameter in the example.  This reports
+We have included the optional `dryRun` parameter in the example.  This reports
 files that it would have extracted from Common Crawl if the `dryRun` had been set to `false`.
 
 There are many configuration options -- see [ConfiguringTheFetch](ConfiguringTheFetch.md) for more details.
 
-```
+```json
 {  
     "dryRun" : true,
-    "indexPathsFile": "crawls.txt", 
+    "indices": {
+      "paths": [
+        "crawl-data/CC-MAIN-2023-06/cc-index.paths.gz",
+        "crawl-data/CC-MAIN-2022-49/cc-index.paths.gz"
+      ]
+    },
     "recordSelector": {
         "must": {
             "status": [
@@ -162,13 +168,12 @@ Please open bug reports and issues to help prioritize future development.
 
 Some features that could be added are included below.
 
-1. Allow reads and writes in `S3`.
-2. Add more features to the record selector -- handle numeric values (e.g. `int`) and allow for `gt`, `gte` and `range` options
-3. Add a refetcher that stores the refetched files with the same policy that the fetcher stores files (same file+directory naming strategy) and potentially writes a table of URLs and fetched digest.
-4. Allow processing of index files from a local cache.  For exploration, it can be useful to process index files multiple times.  There is no reason to pull 300MB over http for each investigation.
-5. Allow a different extracted file naming scheme -- CC's sha1 or any encoding+digest combination?
-6. Allow extraction of truncated files.
-7. Allow counting of mimes or other features -- not just those selected.
-8. Store fetch status and refetch status in an actual database -- against the design goals of this project. LOL...
-9. Write csv with URL+extracted digest info so that users can link bytes to URLs.
+1. Add more features to the record selector -- handle numeric values (e.g. `int`) and allow for `gt`, `gte` and `range` options
+2. Add a refetcher that stores the refetched files with the same policy that the fetcher stores files (same file+directory naming strategy) and potentially writes a table of URLs and fetched digest.
+3. Allow processing of index files from a local cache.  For exploration, it can be useful to process index files multiple times.  There is no reason to pull 300MB over http for each investigation.
+4. Allow a different extracted file naming scheme -- CC's sha1 or any encoding+digest combination?
+5. Allow extraction of truncated files.
+6. Allow counting of mimes or other features -- not just those selected.
+7. Store fetch status and refetch status in an actual database -- against the design goals of this project. LOL...
+8. Write csv with URL+extracted digest info so that users can link bytes to URLs.
 9. ...

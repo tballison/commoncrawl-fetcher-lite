@@ -16,11 +16,9 @@
  */
 package org.tallison.cc.index;
 
-import java.text.DecimalFormat;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class CCIndexReaderCounter {
-    DecimalFormat df = new DecimalFormat("###,###");
     AtomicLong recordsRead = new AtomicLong(0);
     AtomicLong filesExtracted = new AtomicLong(0);
     AtomicLong truncatedWritten = new AtomicLong(0);

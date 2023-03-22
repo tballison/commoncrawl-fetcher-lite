@@ -7,12 +7,21 @@ A full config file would include:
 ```json
 {
   "dryRun": true,
+  "fetcher": {
+    "throttleSeconds": [ 30, 120, 600, 1800]
+  },
   "filesDirectory": "docs",
-  "indexPathsFile": "crawls.txt",
+  "indices" : {
+    "profile": "my-s3-cc-profile",
+    "paths": [
+      "crawl-data/CC-MAIN-2023-06/cc-index.paths.gz",
+      "crawl-data/CC-MAIN-2022-49/cc-index.paths.gz"
+    ]
+  },
   "maxFilesExtracted": 10000,
   "maxFilesTruncated": -1,
   "maxRecords": -1,
-  "numThreads": 2,
+  "numThreads": 3,
   "recordSelector": {
     "must": {
       "status": [
@@ -65,6 +74,100 @@ or not the file selector has selected a record for processing.
 2. `maxFilesExtracted` sets a maximum on the non-truncated records that are extracted
 from the Common Crawl data set.
 3. `maxFilesTruncated` sets a maximum on the URLs written to `urls-for-truncated-files.txt`.
+
+## Indices
+The `indices` element is required. The `paths` element inside the
+`indices` element may contain paths to index files (e.g. `.../cdx-00273.gz`) 
+or paths to index lists (e.g. `crawl-data/CC-MAIN-2023-06/cc-index.paths.gz`).
+
+An example of paths to specific index files:
+```json
+{
+  "indices" : {
+    "paths": [
+      "cc-index/collections/CC-MAIN-2023-06/indexes/cdx-00273.gz",
+      "cc-index/collections/CC-MAIN-2023-06/indexes/cdx-00274.gz",
+      "cc-index/collections/CC-MAIN-2023-06/indexes/cdx-00275.gz",
+      "cc-index/collections/CC-MAIN-2023-06/indexes/cdx-00276.gz"
+    ]
+  }
+}
+```
+
+An example of paths to lists of index files from specific crawls follows.
+If there is no `basePath` or `profile` element, the tool will fetch
+these over https from: `https://data.commoncrawl.org/`.
+```json
+{
+  "indices": {
+    "paths": [
+      "crawl-data/CC-MAIN-2023-06/cc-index.paths.gz",
+      "crawl-data/CC-MAIN-2022-49/cc-index.paths.gz"
+    ]
+  }
+}
+```
+
+### Index Lists on a Local File System
+If the index path lists are on a local file share, they must include a `basePath`
+element:
+```json
+{
+  "indices": {
+    "basePath" : "C:/Users/mine/cc/index_paths",
+    "paths": [
+      "crawl-data/CC-MAIN-2023-06/cc-index.paths.gz",
+      "crawl-data/CC-MAIN-2022-49/cc-index.paths.gz"
+    ]
+  }
+}
+```
+### Index Lists on an S3 Bucket
+If the index path lists are in s3, they must include a `profile`
+element:
+```json
+{
+  "indices": {
+    "profile" : "my-aws-cc-profile",
+    "paths": [
+      "crawl-data/CC-MAIN-2023-06/cc-index.paths.gz",
+      "crawl-data/CC-MAIN-2022-49/cc-index.paths.gz"
+    ]
+  }
+}
+```
+
+## Fetcher
+This is the component that fetches the individual WARC files from
+the large composite warc.gz files.
+
+The `fetcher` element is optional.  When the element doesn't exist, the individual
+WARCs are fetched over https from: `https://data.commoncrawl.org/` with
+default throttle seconds: [30, 120, 600, 1800].  Custom throttle seconds may be specified
+for the HTTP fetcher:
+
+```json
+{
+  "fetcher": {
+    "throttleSeconds": [
+      30,
+      120,
+      600,
+      1800
+    ]
+  }
+}
+```
+To fetch the individual WARCs from s3, a fetcher must be defined 
+and it must contain a `profile` element:
+
+```json
+{
+  "fetcher": {
+    "profile": "my-s3-cc-profile"
+  }
+}
+```
 
 ## TargetPathPattern
 By default, extracted files are stored by the BASE64 encoded SHA-256 of the file in the
