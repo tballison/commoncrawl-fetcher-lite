@@ -86,6 +86,7 @@ public class IndexIterator extends PipesIterator implements Initializable {
                     if (line.startsWith("#") || !line.endsWith(".gz")) {
                         //skip comments and paths for index files that do not end in .gz
                         line = reader.readLine();
+                        continue;
                     }
                     indexPaths.add(line);
                     line = reader.readLine();

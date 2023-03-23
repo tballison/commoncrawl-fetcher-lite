@@ -41,7 +41,7 @@
     </File>
   </Appenders>
   <Loggers>
-    <Root level="debug" additivity="false">
+    <Root level="info" additivity="false">
       <AppenderRef ref="Console"/>
     </Root>
     <logger name="extracted-urls" level="INFO" additivity="false">

@@ -123,7 +123,7 @@ element:
 }
 ```
 ### Index Lists on an S3 Bucket
-If the index path lists are in s3, they must include a `profile`
+If the index path lists are in S3, they must include a `profile`
 element:
 ```json
 {
@@ -158,7 +158,7 @@ for the HTTP fetcher:
   }
 }
 ```
-To fetch the individual WARCs from s3, a fetcher must be defined 
+To fetch the individual WARCs from S3, a fetcher must be defined 
 and it must contain a `profile` element:
 
 ```json

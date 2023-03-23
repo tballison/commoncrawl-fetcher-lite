@@ -4,7 +4,7 @@ This is yet another attempt to make it easy to extract files from
 [Common Crawl](https://commoncrawl.org/).
 
 > **Warning!!!**
-THIS IS STILL ALPHA!  There will be bugs. Things will change without warning.
+THIS IS STILL ALPHA!  There will be bugs and things will change without warning.
 
 ## Goal
 Make it easy to extract or refetch a smallish sample (~ couple of million) of complete files from CommonCrawl data.
@@ -124,6 +124,8 @@ There are many configuration options -- see [ConfiguringTheFetch](ConfiguringThe
 ### 2. Run the Code
 Users must have Java (>= 11) installed.  To check your version: `java -version`.
 
+Get the latest released jar from [github](https://github.com/tballison/commoncrawl-fetcher-lite/releases).
+
 The commandline:
 `java -jar commoncrawl-fetcher-lite-X.Y.Z.jar minimal-config.json`
 
@@ -142,10 +144,9 @@ The [Nutch project](https://nutch.apache.org/) may be excessive, but it is
 extremely scaleable and robust (**it powers Common Crawl!**), and it records the WARC information
 for each fetch.
 
-## Building
-Once this project has reached an BETA stage, releases will be available on github.  
-Until then, you'll need git, Java JDK >= 11 and a recent version of Maven installed.
-
+## How to Build
+For those who want to build the latest, you'll need Java jdk >= 11,
+and recent versions of git and maven installed.
 1. `git clone https://github.com/tballison/commoncrawl-fetcher-lite`
 1. `cd commoncrawl-fetcher-lite`
 1. `mvn install`
@@ -158,12 +159,12 @@ provenance information for the URLs nor for the refetches.
 The goal is simply to select files for extraction and to
 extract them or record the URLs for truncated files.
 
-This has been initially designed for users working outside Amazon's environment. 
-We will likely add access to `S3` resources in the future.
-
+This has been initially designed for users working outside Amazon's environment.
 > **Warning!!!**
-> AWS throttles download rates. This code is designed with back-off logic so that it will pause 
-> if it gets a throttle warning from AWS. While this code is multi-threaded, it is not useful to run more than about 3 threads.
+> AWS throttles download rates, especially for HTTP requests. This code is designed with back-off logic for the default HTTP fetcher so that it will pause 
+> if it gets a throttle warning from AWS. While this code is multi-threaded, it is not useful to run more than about 3 threads
+> when fetching from HTTP.  When running this code on AWS instances
+> pulling from S3, I've run 50 threads without receiving throttling complaints.
 
 ## Roadmap
 
@@ -187,3 +188,8 @@ The release is currently triggered by pushing a tag starting with 'v'.
 
 ```git tag -a "v1.0.0-alpha1" -m "v1.0.0-alpha1-release" && git push origin v1.0.0-alpha1```
 
+## Related projects
+
+* [CommonCrawlDocumentDownload](https://github.com/centic9/CommonCrawlDocumentDownload) (my initial inspiration)
+* [SimpleCommonCrawlExtractor](https://github.com/tballison/SimpleCommonCrawlExtractor) (my first attempt)
+* [commoncrawl-fetcher module in file-observatory](https://github.com/tballison/file-observatory/tree/main/commoncrawl-fetcher) (second attempt)
