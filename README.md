@@ -177,3 +177,9 @@ Some features that could be added are included below.
 7. Store fetch status and refetch status in an actual database -- against the design goals of this project. LOL...
 8. Write csv with URL+extracted digest info so that users can link bytes to URLs.
 9. ...
+
+# Release
+
+The release is currently triggered by pushing a tag starting with 'v'.
+
+```git tag -a "v1.0.0-alpha1" -m "v1.0.0-alpha1-release && git push origin v1.0.0-alpha1```
