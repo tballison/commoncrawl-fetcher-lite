@@ -18,15 +18,13 @@ package org.tallison.cc.index.fetcher;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedReader;
-import java.io.BufferedWriter;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.Collections;
+import java.util.Locale;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
@@ -39,22 +37,21 @@ import java.util.concurrent.TimeoutException;
 import java.util.zip.GZIPInputStream;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.tallison.cc.index.AbstractRecordProcessor;
+import org.tallison.cc.index.CCIndexReaderCounter;
+import org.tallison.cc.index.IndexIterator;
+
 import org.apache.tika.exception.TikaConfigException;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.io.TikaInputStream;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.pipes.FetchEmitTuple;
 import org.apache.tika.pipes.fetcher.Fetcher;
-import org.apache.tika.pipes.fetcher.RangeFetcher;
 import org.apache.tika.pipes.pipesiterator.CallablePipesIterator;
 import org.apache.tika.pipes.pipesiterator.PipesIterator;
 import org.apache.tika.utils.StringUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.tallison.cc.index.AbstractRecordProcessor;
-import org.tallison.cc.index.CCIndexReaderCounter;
-import org.tallison.cc.index.IndexIterator;
-import org.tallison.cc.index.io.BackoffHttpFetcher;
 
 /**
  * This is a lighter class that doesn't rely on a database
@@ -90,15 +87,15 @@ public class CCFileFetcher {
 
         IndexIterator indexIterator = fetcherConfig.getIndexIterator();
         indexIterator.initialize(Collections.EMPTY_MAP);
-        executorCompletionService.submit(
-                new CallablePipesIterator(indexIterator, indexPathsList));
+        executorCompletionService.submit(new CallablePipesIterator(indexIterator, indexPathsList));
         CCIndexReaderCounter counter = new CCIndexReaderCounter();
         int finishedWorkers = 0;
         try {
             for (int i = 0; i < fetcherConfig.getNumThreads(); i++) {
                 FetchLiteRecordProcessor processor =
                         new FetchLiteRecordProcessor(fetcherConfig, counter);
-                executorCompletionService.submit(new IndexWorker(fetcherConfig, indexPathsList, processor));
+                executorCompletionService.submit(
+                        new IndexWorker(fetcherConfig, indexPathsList, processor));
             }
 
 
@@ -166,22 +163,23 @@ public class CCFileFetcher {
             return INDEX_WORKER_ID;
         }
 
-        private boolean processFile(FetchEmitTuple fetchEmitTuple, AbstractRecordProcessor recordProcessor)
+        private boolean processFile(FetchEmitTuple fetchEmitTuple,
+                                    AbstractRecordProcessor recordProcessor)
                 throws InterruptedException {
             long start = System.currentTimeMillis();
-            LOGGER.info("starting to fetch index gz: {}", fetchEmitTuple.getFetchKey().getFetchKey());
-            try (TikaInputStream tis = (TikaInputStream) fetcher.fetch(fetchEmitTuple.getFetchKey().getFetchKey(), new Metadata())) {
-                try (InputStream is =
-                             new BufferedInputStream(new GZIPInputStream(
-                                     tis))) {
+            LOGGER.info("starting to fetch index gz: {}",
+                    fetchEmitTuple.getFetchKey().getFetchKey());
+            try (TikaInputStream tis = (TikaInputStream) fetcher.fetch(
+                    fetchEmitTuple.getFetchKey().getFetchKey(), new Metadata())) {
+                try (InputStream is = new BufferedInputStream(new GZIPInputStream(tis))) {
                     try (BufferedReader reader = new BufferedReader(
                             new InputStreamReader(is, StandardCharsets.UTF_8))) {
                         String line = reader.readLine();
                         int lines = 0;
                         long elapsed = System.currentTimeMillis() - start;
                         LOGGER.info("Finished fetching {} bytes in {} ms for index gz: {}",
-                                String.format("%,d", tis.getLength()),
-                                String.format("%,d", elapsed),
+                                String.format(Locale.US, "%,d", tis.getLength()),
+                                String.format(Locale.US, "%,d", elapsed),
                                 fetchEmitTuple.getFetchKey().getFetchKey());
                         while (line != null) {
                             LOGGER.trace("about to add a line");
@@ -209,7 +207,7 @@ public class CCFileFetcher {
             }
             long elapsed = System.currentTimeMillis() - start;
             LOGGER.info("finished processing index gz in ({}) ms: {}",
-                    String.format("%,d", elapsed), fetchEmitTuple.getFetchKey().getFetchKey());
+                    String.format(Locale.US, "%,d", elapsed), fetchEmitTuple.getFetchKey().getFetchKey());
             return true;
         }
     }

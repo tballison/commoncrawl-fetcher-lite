@@ -25,6 +25,7 @@ public abstract class AbstractSamplingSelector implements SelectorClause {
     AbstractSamplingSelector(Sampler sampler) {
         this.sampler = sampler;
     }
+
     interface Sampler extends SelectorClause {
 
     }
@@ -39,6 +40,7 @@ public abstract class AbstractSamplingSelector implements SelectorClause {
     static class SampleSome implements Sampler {
         private final double sample;
         private final Random random = new Random();
+
         SampleSome(double sample) {
             this.sample = sample;
         }

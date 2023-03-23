@@ -11,7 +11,12 @@
     ]
   },
   "fetcher": {
-    "throttleSeconds": [ 30, 120, 600, 1800]
+    "throttleSeconds": [
+      30,
+      120,
+      600,
+      1800
+    ]
   },
   "docs": {
     "path": "C:/User/someone/data/docs"

@@ -3,12 +3,12 @@
   "maxRecords": 1000000,
   "maxFilesExtracted": 100,
   "maxFilesTruncated": 1000,
-  "indices" : {
+  "indices": {
     "profile": "my-profile",
     "paths": [
       "crawl-data/CC-MAIN-2023-06/cc-index.paths.gz",
       "crawl-data/CC-MAIN-2022-49/cc-index.paths.gz"
-      ]
+    ]
   },
   "fetcher": {
     "profile": "my-profile"
@@ -35,7 +35,7 @@
         }
       ]
     },
-    "must_not" : {
+    "must_not": {
       "status": [
         {
           "match": "300"

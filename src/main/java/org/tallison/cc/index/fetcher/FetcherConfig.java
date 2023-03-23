@@ -17,24 +17,23 @@
 package org.tallison.cc.index.fetcher;
 
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Collections;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import org.tallison.cc.index.IndexIterator;
+import org.tallison.cc.index.io.BackoffHttpFetcher;
+import org.tallison.cc.index.io.TargetPathRewriter;
+import org.tallison.cc.index.selector.RecordSelector;
+
 import org.apache.tika.config.Initializable;
 import org.apache.tika.exception.TikaConfigException;
 import org.apache.tika.pipes.emitter.StreamEmitter;
 import org.apache.tika.pipes.emitter.fs.FileSystemEmitter;
 import org.apache.tika.pipes.emitter.s3.S3Emitter;
-import org.apache.tika.pipes.fetcher.Fetcher;
 import org.apache.tika.pipes.fetcher.RangeFetcher;
 import org.apache.tika.pipes.fetcher.s3.S3Fetcher;
 import org.apache.tika.utils.StringUtils;
-import org.tallison.cc.index.IndexIterator;
-import org.tallison.cc.index.io.BackoffHttpFetcher;
-import org.tallison.cc.index.io.TargetPathRewriter;
-import org.tallison.cc.index.selector.RecordSelector;
 
 public class FetcherConfig {
 
@@ -125,16 +124,12 @@ public class FetcherConfig {
         this.dryRun = dryRun;
     }
 
-    public void setRecordSelector(RecordSelector recordSelector) {
-        this.recordSelector = recordSelector;
+    public String getTargetPathPattern() {
+        return targetPathPattern;
     }
 
     public void setTargetPathPattern(String pathPattern) {
         this.targetPathPattern = pathPattern;
-    }
-
-    public String getTargetPathPattern() {
-        return targetPathPattern;
     }
 
     public TargetPathRewriter getTargetPathRewriter() {
@@ -143,6 +138,10 @@ public class FetcherConfig {
 
     public RecordSelector getRecordSelector() {
         return recordSelector;
+    }
+
+    public void setRecordSelector(RecordSelector recordSelector) {
+        this.recordSelector = recordSelector;
     }
 
     public IndexIterator getIndexIterator() {
@@ -163,12 +162,13 @@ public class FetcherConfig {
     private static class FetchConfig {
         private final String profile;
         private final long[] throttleSeconds;
+
         @JsonCreator
         public FetchConfig(@JsonProperty("profile") String profile,
                            @JsonProperty("throttleSeconds") long[] throttleSeconds) {
             this.profile = profile;
-            this.throttleSeconds = (throttleSeconds == null) ?
-                    DEFAULT_THROTTLE_SECONDS : throttleSeconds;
+            this.throttleSeconds =
+                    (throttleSeconds == null) ? DEFAULT_THROTTLE_SECONDS : throttleSeconds;
         }
 
         RangeFetcher newFetcher() throws TikaConfigException {
@@ -177,13 +177,13 @@ public class FetcherConfig {
                 fetcher = new BackoffHttpFetcher(throttleSeconds);
             } else {
                 fetcher = new S3Fetcher();
-                ((S3Fetcher)fetcher).setProfile(profile);
-                ((S3Fetcher)fetcher).setCredentialsProvider("profile");
-                ((S3Fetcher)fetcher).setBucket(FetcherConfig.CC_S3_BUCKET);
-                ((S3Fetcher)fetcher).setRegion(FetcherConfig.CC_REGION);
+                ((S3Fetcher) fetcher).setProfile(profile);
+                ((S3Fetcher) fetcher).setCredentialsProvider("profile");
+                ((S3Fetcher) fetcher).setBucket(FetcherConfig.CC_S3_BUCKET);
+                ((S3Fetcher) fetcher).setRegion(FetcherConfig.CC_REGION);
             }
             if (fetcher instanceof Initializable) {
-                ((Initializable)fetcher).initialize(Collections.EMPTY_MAP);
+                ((Initializable) fetcher).initialize(Collections.EMPTY_MAP);
             }
             return fetcher;
         }
@@ -216,7 +216,7 @@ public class FetcherConfig {
         }
 
         public StreamEmitter newEmitter() throws TikaConfigException {
-            if (! StringUtils.isBlank(profile)) {
+            if (!StringUtils.isBlank(profile)) {
                 S3Emitter emitter = new S3Emitter();
                 emitter.setCredentialsProvider("profile");
                 emitter.setProfile(profile);
@@ -230,7 +230,7 @@ public class FetcherConfig {
                 } else {
                     emitter.setRegion(FetcherConfig.CC_REGION);
                 }
-                if (! StringUtils.isBlank(prefix)) {
+                if (!StringUtils.isBlank(prefix)) {
                     emitter.setPrefix(prefix);
                 }
                 emitter.initialize(Collections.EMPTY_MAP);

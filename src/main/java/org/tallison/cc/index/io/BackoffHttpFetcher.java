@@ -21,14 +21,15 @@ import java.io.InputStream;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.tallison.cc.index.fetcher.FetcherConfig;
+
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.io.TikaInputStream;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.pipes.fetcher.FetchKey;
 import org.apache.tika.pipes.fetcher.http.HttpFetcher;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.tallison.cc.index.fetcher.FetcherConfig;
 
 /**
  * We need this because it allows for back-off on 503
@@ -53,13 +54,12 @@ public class BackoffHttpFetcher extends HttpFetcher {
     @Override
     public InputStream fetch(String fetchkey, long rangeStart, long rangeEnd, Metadata metadata)
             throws IOException {
-        return fetchWithBackOff(
-                new FetchKey("name", getUrl(fetchkey), rangeStart, rangeEnd),
+        return fetchWithBackOff(new FetchKey("name", getUrl(fetchkey), rangeStart, rangeEnd),
                 metadata);
     }
 
     private String getUrl(String fetchKey) {
-        if (! fetchKey.startsWith("http")) {
+        if (!fetchKey.startsWith("http")) {
             if (fetchKey.startsWith("/")) {
                 return FetcherConfig.CC_HTTPS_BASE + fetchKey;
             } else {
@@ -69,8 +69,7 @@ public class BackoffHttpFetcher extends HttpFetcher {
         return fetchKey;
     }
 
-    private InputStream fetchWithBackOff(FetchKey fetchKey, Metadata metadata)
-            throws IOException {
+    private InputStream fetchWithBackOff(FetchKey fetchKey, Metadata metadata) throws IOException {
         int tries = 0;
         while (tries < throttleSeconds.length) {
             try {
@@ -101,7 +100,8 @@ public class BackoffHttpFetcher extends HttpFetcher {
         throw new ThrottleException();
     }
 
-    private TikaInputStream _fetch(FetchKey fetchKey, Metadata metadata) throws IOException, TikaException {
+    private TikaInputStream _fetch(FetchKey fetchKey, Metadata metadata)
+            throws IOException, TikaException {
         if (fetchKey.getRangeStart() > 0) {
             return (TikaInputStream) super.fetch(fetchKey.getFetchKey(), fetchKey.getRangeStart(),
                     fetchKey.getRangeEnd(), metadata);

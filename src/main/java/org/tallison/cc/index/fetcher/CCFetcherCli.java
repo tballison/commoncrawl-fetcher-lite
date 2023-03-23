@@ -19,9 +19,6 @@ package org.tallison.cc.index.fetcher;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 /**
  * This is a lighter class that doesn't rely on a database
  * to extract files from CC and write a list of truncated urls.

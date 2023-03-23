@@ -16,6 +16,7 @@
  */
 package org.tallison.cc.index;
 
+import java.util.Locale;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class CCIndexReaderCounter {
@@ -37,10 +38,9 @@ public class CCIndexReaderCounter {
 
     @Override
     public String toString() {
-        return "counts: {" +
-                "recordsRead=" + String.format("%,d", recordsRead.get()) +
-                ", filesExtracted=" + String.format("%,d", filesExtracted.get()) +
-                ", truncatedWritten=" + String.format("%,d", truncatedWritten.get()) +
-                '}';
+
+        return "counts: {" + "recordsRead=" + String.format(Locale.US, "%,d", recordsRead.get()) +
+                ", filesExtracted=" + String.format(Locale.US, "%,d", filesExtracted.get()) +
+                ", truncatedWritten=" + String.format(Locale.US, "%,d", truncatedWritten.get()) + '}';
     }
 }

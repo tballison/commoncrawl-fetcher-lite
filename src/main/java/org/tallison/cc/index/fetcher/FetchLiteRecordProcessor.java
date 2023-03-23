@@ -18,29 +18,30 @@ package org.tallison.cc.index.fetcher;
 
 import java.io.IOException;
 import java.util.Optional;
-import java.util.concurrent.ArrayBlockingQueue;
 
-import org.apache.tika.exception.TikaConfigException;
-import org.apache.tika.utils.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tallison.cc.index.AbstractRecordProcessor;
 import org.tallison.cc.index.CCIndexReaderCounter;
 import org.tallison.cc.index.CCIndexRecord;
 
+import org.apache.tika.exception.TikaConfigException;
+import org.apache.tika.utils.StringUtils;
+
 public class FetchLiteRecordProcessor extends AbstractRecordProcessor {
 
     private static Logger LOGGER = LoggerFactory.getLogger(FetchLiteRecordProcessor.class);
     private static Logger TRUNCATED_URLS_LOGGER = LoggerFactory.getLogger("truncated-urls");
-    private static Logger TRUNCATED_URLS_FULL_LOGGER = LoggerFactory.getLogger("truncated-urls-full");
+    private static Logger TRUNCATED_URLS_FULL_LOGGER =
+            LoggerFactory.getLogger("truncated-urls-full");
 
     private final FetcherConfig fetcherConfig;
     private final CCIndexReaderCounter counter;
 
     private final FileFromCCWarcFetcher fileFromCCWarcFetcher;
 
-    public FetchLiteRecordProcessor(FetcherConfig fetcherConfig,
-                                    CCIndexReaderCounter counter) throws TikaConfigException,IOException {
+    public FetchLiteRecordProcessor(FetcherConfig fetcherConfig, CCIndexReaderCounter counter)
+            throws TikaConfigException, IOException {
         this.fetcherConfig = fetcherConfig;
         this.counter = counter;
         this.fileFromCCWarcFetcher = new FileFromCCWarcFetcher(fetcherConfig);
@@ -68,17 +69,16 @@ public class FetchLiteRecordProcessor extends AbstractRecordProcessor {
         if (!fetcherConfig.getRecordSelector().select(r)) {
             return true;
         }
-        if (! StringUtils.isBlank(r.getTruncated())) {
+        if (!StringUtils.isBlank(r.getTruncated())) {
             long truncated = counter.getTruncatedWritten().incrementAndGet();
             if (fetcherConfig.getMaxFilesTruncated() > -1 &&
-                truncated >= fetcherConfig.getMaxFilesTruncated()) {
+                    truncated >= fetcherConfig.getMaxFilesTruncated()) {
                 LOGGER.info("hit max truncated files");
                 return false;
             }
             String url = r.getUrl();
             TRUNCATED_URLS_LOGGER.info("", url);
-            TRUNCATED_URLS_FULL_LOGGER.info("", url,
-                    r.getFilename(), r.getOffset(), r.getLength());
+            TRUNCATED_URLS_FULL_LOGGER.info("", url, r.getFilename(), r.getOffset(), r.getLength());
             return true;
         } else {
             long extracted = counter.getFilesExtracted().incrementAndGet();

@@ -25,15 +25,7 @@ import org.tallison.cc.index.CCIndexRecord;
 
 public class RecordSelector {
 
-    private static class AcceptAllRecords extends RecordSelector {
-        @Override
-        public boolean select(CCIndexRecord record) {
-            return true;
-        }
-    }
-
     public static RecordSelector ACCEPT_ALL_RECORDS = new AcceptAllRecords();
-
     @JsonProperty
     Map<String, List<SelectorClause>> must = new HashMap<>();
     @JsonProperty
@@ -75,13 +67,13 @@ public class RecordSelector {
     private String getStringValue(String key, CCIndexRecord record) {
 
         switch (key) {
-            case "mime_detected" :
+            case "mime_detected":
                 return record.getMimeDetected();
-            case "truncated" :
+            case "truncated":
                 return record.getTruncated();
-            case "mime" :
+            case "mime":
                 return record.getMime();
-            case "status" :
+            case "status":
                 return Integer.toString(record.getStatus());
             case "url":
                 return record.getUrl();
@@ -91,6 +83,13 @@ public class RecordSelector {
                 return record.getDigest();
             default:
                 throw new IllegalArgumentException("Don't yet support key " + key);
+        }
+    }
+
+    private static class AcceptAllRecords extends RecordSelector {
+        @Override
+        public boolean select(CCIndexRecord record) {
+            return true;
         }
     }
 

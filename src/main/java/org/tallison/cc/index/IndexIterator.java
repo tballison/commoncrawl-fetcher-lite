@@ -31,6 +31,9 @@ import java.util.zip.GZIPInputStream;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import org.tallison.cc.index.fetcher.FetcherConfig;
+import org.tallison.cc.index.io.BackoffHttpFetcher;
+
 import org.apache.tika.config.Initializable;
 import org.apache.tika.config.Param;
 import org.apache.tika.exception.TikaConfigException;
@@ -43,8 +46,6 @@ import org.apache.tika.pipes.fetcher.Fetcher;
 import org.apache.tika.pipes.fetcher.fs.FileSystemFetcher;
 import org.apache.tika.pipes.fetcher.s3.S3Fetcher;
 import org.apache.tika.pipes.pipesiterator.PipesIterator;
-import org.tallison.cc.index.fetcher.FetcherConfig;
-import org.tallison.cc.index.io.BackoffHttpFetcher;
 
 public class IndexIterator extends PipesIterator implements Initializable {
 
@@ -58,17 +59,17 @@ public class IndexIterator extends PipesIterator implements Initializable {
 
     @JsonCreator
     public IndexIterator(@JsonProperty("profile") String profile,
-                               @JsonProperty("basePath") String basePath,
-                               @JsonProperty("paths") List<String> indexPaths) {
+                         @JsonProperty("basePath") String basePath,
+                         @JsonProperty("paths") List<String> indexPaths) {
         if (profile != null) {
             fetcher = new S3Fetcher();
-            ((S3Fetcher)fetcher).setProfile(profile);
-            ((S3Fetcher)fetcher).setCredentialsProvider("profile");
-            ((S3Fetcher)fetcher).setBucket(FetcherConfig.CC_S3_BUCKET);
-            ((S3Fetcher)fetcher).setRegion(FetcherConfig.CC_REGION);
+            ((S3Fetcher) fetcher).setProfile(profile);
+            ((S3Fetcher) fetcher).setCredentialsProvider("profile");
+            ((S3Fetcher) fetcher).setBucket(FetcherConfig.CC_S3_BUCKET);
+            ((S3Fetcher) fetcher).setRegion(FetcherConfig.CC_REGION);
         } else if (basePath != null) {
             fetcher = new FileSystemFetcher();
-            ((FileSystemFetcher)fetcher).setBasePath(basePath);
+            ((FileSystemFetcher) fetcher).setBasePath(basePath);
         } else {
             //do nothing
         }
@@ -82,7 +83,7 @@ public class IndexIterator extends PipesIterator implements Initializable {
             try (BufferedReader reader = getReader(is, path)) {
                 String line = reader.readLine();
                 while (line != null) {
-                    if (line.startsWith("#") || ! line.endsWith(".gz")) {
+                    if (line.startsWith("#") || !line.endsWith(".gz")) {
                         //skip comments and paths for index files that do not end in .gz
                         line = reader.readLine();
                     }
@@ -95,7 +96,8 @@ public class IndexIterator extends PipesIterator implements Initializable {
 
     private static BufferedReader getReader(InputStream is, String path) throws IOException {
         if (path.endsWith(".gz")) {
-            return new BufferedReader(new InputStreamReader(new GZIPInputStream(is), StandardCharsets.UTF_8));
+            return new BufferedReader(
+                    new InputStreamReader(new GZIPInputStream(is), StandardCharsets.UTF_8));
         } else {
             return new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8));
         }
@@ -104,8 +106,7 @@ public class IndexIterator extends PipesIterator implements Initializable {
     @Override
     protected void enqueue() throws IOException, TimeoutException, InterruptedException {
         for (String p : indexPaths) {
-            FetchEmitTuple t = new FetchEmitTuple(p, new FetchKey("", p),
-                    new EmitKey());
+            FetchEmitTuple t = new FetchEmitTuple(p, new FetchKey("", p), new EmitKey());
             tryToAdd(t);
         }
         tryToAdd(PipesIterator.COMPLETED_SEMAPHORE);
@@ -119,7 +120,7 @@ public class IndexIterator extends PipesIterator implements Initializable {
             fetcher = new BackoffHttpFetcher(new long[]{30, 120});
         }
         if (fetcher instanceof Initializable) {
-            ((Initializable)fetcher).initialize(params);
+            ((Initializable) fetcher).initialize(params);
         }
         Matcher m = Pattern.compile("indexes/cdx-\\d{5,5}.gz\\Z").matcher("");
         for (String p : initPaths) {
@@ -132,8 +133,9 @@ public class IndexIterator extends PipesIterator implements Initializable {
             } else if (m.reset(p).find()) {
                 indexPaths.add(p);
             } else {
-                throw new TikaConfigException("Paths need to be path lists (.../cc-index.paths.gz) " +
-                        "or indexes (indexes/cdx-\\d\\d\\d\\d\\d.gz");
+                throw new TikaConfigException(
+                        "Paths need to be path lists (.../cc-index.paths.gz) " +
+                                "or indexes (indexes/cdx-\\d\\d\\d\\d\\d.gz");
             }
         }
 

@@ -32,6 +32,13 @@ public abstract class AbstractRecordProcessor implements IndexRecordProcessor {
         threadNumber = threadCounter.incrementAndGet();
     }
 
+    //returns "" if key is null, otherwise, trims and converts remaining \r\n\t to " "
+    protected static String clean(String key) {
+        if (key == null) {
+            return "";
+        }
+        return key.trim().replaceAll("[\r\n\t]", " ");
+    }
 
     protected int getThreadNumber() {
         return threadNumber;
@@ -42,10 +49,10 @@ public abstract class AbstractRecordProcessor implements IndexRecordProcessor {
             return null;
         }
         int i = u.lastIndexOf('.');
-        if (i < 0 || i+6 < u.length()) {
+        if (i < 0 || i + 6 < u.length()) {
             return null;
         }
-        String ext = u.substring(i+1);
+        String ext = u.substring(i + 1);
         ext = ext.trim();
         Matcher m = Pattern.compile("^\\d+$").matcher(ext);
         if (m.find()) {
@@ -54,14 +61,6 @@ public abstract class AbstractRecordProcessor implements IndexRecordProcessor {
         ext = ext.toLowerCase(Locale.ENGLISH);
         ext = ext.replaceAll("\\/$", "");
         return ext;
-    }
-
-    //returns "" if key is null, otherwise, trims and converts remaining \r\n\t to " "
-    protected static String clean(String key) {
-        if (key == null) {
-            return "";
-        }
-        return key.trim().replaceAll("[\r\n\t]", " ");
     }
 
 }

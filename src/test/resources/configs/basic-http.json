@@ -1,18 +1,23 @@
 {
-  "numThreads":3,
+  "numThreads": 3,
   "maxRecords": 1000000,
   "maxFilesExtracted": 100,
   "maxFilesTruncated": 1000,
   "fetcher": {
-    "throttleSeconds": [ 30, 120, 600, 1800]
+    "throttleSeconds": [
+      30,
+      120,
+      600,
+      1800
+    ]
   },
-  "indices" : {
+  "indices": {
     "paths": [
-    "cc-index/collections/CC-MAIN-2023-06/indexes/cdx-00273.gz",
-    "cc-index/collections/CC-MAIN-2023-06/indexes/cdx-00274.gz",
-    "cc-index/collections/CC-MAIN-2023-06/indexes/cdx-00275.gz",
-    "cc-index/collections/CC-MAIN-2023-06/indexes/cdx-00276.gz"
-      ]
+      "cc-index/collections/CC-MAIN-2023-06/indexes/cdx-00273.gz",
+      "cc-index/collections/CC-MAIN-2023-06/indexes/cdx-00274.gz",
+      "cc-index/collections/CC-MAIN-2023-06/indexes/cdx-00275.gz",
+      "cc-index/collections/CC-MAIN-2023-06/indexes/cdx-00276.gz"
+    ]
   },
   "recordSelector": {
     "should": {
@@ -30,7 +35,7 @@
         }
       ]
     },
-    "must_not" : {
+    "must_not": {
       "status": [
         {
           "match": "300"

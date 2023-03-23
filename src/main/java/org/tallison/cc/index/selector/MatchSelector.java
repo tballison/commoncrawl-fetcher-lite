@@ -29,8 +29,7 @@ public class MatchSelector extends AbstractSamplingSelector {
     final String match;
 
     @JsonCreator
-    MatchSelector(@JsonProperty("match") String match,
-                  @JsonProperty("sample") Double sample,
+    MatchSelector(@JsonProperty("match") String match, @JsonProperty("sample") Double sample,
                   @JsonProperty("case_sensitive") Boolean caseSensitive) {
         super(sample == null ? new SampleAll() : new SampleSome(sample));
         this.match = match;

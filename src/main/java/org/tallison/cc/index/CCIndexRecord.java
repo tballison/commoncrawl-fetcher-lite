@@ -15,6 +15,7 @@
  * limitations under the License.
  */
 package org.tallison.cc.index;
+
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -56,78 +57,6 @@ public class CCIndexRecord {
     private String truncated;
     private String redirect;
 
-    public String getUrl() {
-        return url;
-    }
-
-    public String getHost() {
-        try {
-            URL u = new URL(url);
-            return u.getHost();
-        } catch (MalformedURLException e) {
-            return "";
-        }
-    }
-
-    public String getMime() {
-        return mime;
-    }
-
-    public String getNormalizedMime() {
-        return CCIndexRecord.normalizeMime(mime);
-    }
-
-    public String getNormalizedMimeDetected() {
-        return CCIndexRecord.normalizeMime(mimeDetected);
-    }
-
-    public Integer getStatus() {
-        return status;
-    }
-
-    public String getDigest() {
-        return digest;
-    }
-
-    public Long getLength() {
-        return length;
-    }
-
-    public Integer getOffset() {
-        return offset;
-    }
-
-    public String getFilename() {
-        return filename;
-    }
-
-    public String getMimeDetected() {
-        return mimeDetected;
-    }
-
-    public String getCharset() {
-        return charset;
-    }
-
-    public String getLanguages() {
-        return languages;
-    }
-
-    public String getTruncated() {
-        return truncated;
-    }
-
-    public String getRedirect() {
-        return redirect;
-    }
-
-    public void setRedirect(String redirect) {
-        this.redirect = redirect;
-    }
-
-    public void setTruncated(String truncated) {
-        this.truncated = truncated;
-    }
     public static String normalizeMime(String s) {
         if (s == null) {
             return null;
@@ -138,13 +67,7 @@ public class CCIndexRecord {
         return s.trim();
     }
 
-
-    public String getOffsetHeader() {
-        return "bytes=" + offset + "-" + (offset+length-1);
-    }
-
     /**
-     *
      * @param url
      * @return "" if no tld could be extracted
      */
@@ -162,8 +85,8 @@ public class CCIndexRecord {
             }
             int i = host.lastIndexOf(".");
             String tld = "";
-            if (i > -1 && i+1 < host.length()) {
-                tld = host.substring(i+1);
+            if (i > -1 && i + 1 < host.length()) {
+                tld = host.substring(i + 1);
             } else {
                 //bad host...or do we want to handle xyz.com. ?
                 return tld;
@@ -197,78 +120,144 @@ public class CCIndexRecord {
 
     private static Optional<CCIndexRecord> tryRepair(String jsonPart) {
 
-            List<Integer> ends = new ArrayList<>();
-            int end = jsonPart.indexOf('}');
+        List<Integer> ends = new ArrayList<>();
+        int end = jsonPart.indexOf('}');
 
-            while (end > -1) {
-                ends.add(end);
-                end = jsonPart.indexOf('}', end + 1);
-            }
-            if (ends.size() == 0) {
-                LOGGER.warn("bad record: {}", jsonPart);
-                return Optional.empty();
-            }
-            Collections.reverse(ends);
-            //now try to parse the string ending it at each end
-            //start with the max
-            for (int thisEnd : ends) {
-                String json = jsonPart.substring(0, thisEnd+1);
-                try {
-                    return Optional.of(OBJECT_MAPPER.readValue(json, CCIndexRecord.class));
-                } catch (JsonProcessingException e) {
-                    LOGGER.trace("mapping exception, trying repair with: {}", json);
-                }
-            }
-            LOGGER.warn("bad record, giving up: {}", jsonPart);
+        while (end > -1) {
+            ends.add(end);
+            end = jsonPart.indexOf('}', end + 1);
+        }
+        if (ends.size() == 0) {
+            LOGGER.warn("bad record: {}", jsonPart);
             return Optional.empty();
+        }
+        Collections.reverse(ends);
+        //now try to parse the string ending it at each end
+        //start with the max
+        for (int thisEnd : ends) {
+            String json = jsonPart.substring(0, thisEnd + 1);
+            try {
+                return Optional.of(OBJECT_MAPPER.readValue(json, CCIndexRecord.class));
+            } catch (JsonProcessingException e) {
+                LOGGER.trace("mapping exception, trying repair with: {}", json);
+            }
+        }
+        LOGGER.warn("bad record, giving up: {}", jsonPart);
+        return Optional.empty();
 
     }
 
+    public String getUrl() {
+        return url;
+    }
 
+    public String getHost() {
+        try {
+            URL u = new URL(url);
+            return u.getHost();
+        } catch (MalformedURLException e) {
+            return "";
+        }
+    }
+
+    public String getMime() {
+        return mime;
+    }
 
     public void setMime(String mime) {
         this.mime = mime;
     }
 
-    public void setMimeDetected(String mimeDetected) {
-        this.mimeDetected = mimeDetected;
+    public String getNormalizedMime() {
+        return CCIndexRecord.normalizeMime(mime);
     }
 
-    public void setDigest(String digest) {
-        this.digest = digest;
+    public String getNormalizedMimeDetected() {
+        return CCIndexRecord.normalizeMime(mimeDetected);
     }
 
-    public void setFilename(String warcFilename) {
-        this.filename = warcFilename;
-    }
-
-    public void setOffset(int offset) {
-        this.offset = offset;
-    }
-
-    public void setLength(long length) {
-        this.length = length;
+    public Integer getStatus() {
+        return status;
     }
 
     public void setStatus(int status) {
         this.status = status;
     }
 
+    public String getDigest() {
+        return digest;
+    }
+
+    public void setDigest(String digest) {
+        this.digest = digest;
+    }
+
+    public Long getLength() {
+        return length;
+    }
+
+    public void setLength(long length) {
+        this.length = length;
+    }
+
+    public Integer getOffset() {
+        return offset;
+    }
+
+    public void setOffset(int offset) {
+        this.offset = offset;
+    }
+
+    public String getFilename() {
+        return filename;
+    }
+
+    public void setFilename(String warcFilename) {
+        this.filename = warcFilename;
+    }
+
+    public String getMimeDetected() {
+        return mimeDetected;
+    }
+
+    public void setMimeDetected(String mimeDetected) {
+        this.mimeDetected = mimeDetected;
+    }
+
+    public String getCharset() {
+        return charset;
+    }
+
+    public String getLanguages() {
+        return languages;
+    }
+
+    public String getTruncated() {
+        return truncated;
+    }
+
+    public void setTruncated(String truncated) {
+        this.truncated = truncated;
+    }
+
+    public String getRedirect() {
+        return redirect;
+    }
+
+    public void setRedirect(String redirect) {
+        this.redirect = redirect;
+    }
+
+    public String getOffsetHeader() {
+        return "bytes=" + offset + "-" + (offset + length - 1);
+    }
+
     @Override
     public String toString() {
-        return "CCIndexRecord{" +
-                "url='" + url + '\'' +
-                ", mime='" + mime + '\'' +
-                ", mimeDetected='" + mimeDetected + '\'' +
-                ", status=" + status +
-                ", digest='" + digest + '\'' +
-                ", length=" + length +
-                ", offset=" + offset +
-                ", filename='" + filename + '\'' +
-                ", charset='" + charset + '\'' +
-                ", languages='" + languages + '\'' +
-                ", truncated='" + truncated + '\'' +
-                ", redirect='" + redirect + '\'' +
-                '}';
+        return "CCIndexRecord{" + "url='" + url + '\'' + ", mime='" + mime + '\'' +
+                ", mimeDetected='" + mimeDetected + '\'' + ", status=" + status + ", digest='" +
+                digest + '\'' + ", length=" + length + ", offset=" + offset + ", filename='" +
+                filename + '\'' + ", charset='" + charset + '\'' + ", languages='" + languages +
+                '\'' + ", truncated='" + truncated + '\'' + ", redirect='" + redirect + '\'' + '}';
     }
 }

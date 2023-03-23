@@ -29,15 +29,6 @@ import java.util.zip.GZIPInputStream;
 import org.apache.commons.codec.binary.Base32;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.io.IOUtils;
-import org.apache.tika.exception.TikaConfigException;
-import org.apache.tika.exception.TikaException;
-import org.apache.tika.io.TikaInputStream;
-import org.apache.tika.metadata.Metadata;
-import org.apache.tika.pipes.FetchEmitTuple;
-import org.apache.tika.pipes.emitter.EmitKey;
-import org.apache.tika.pipes.emitter.StreamEmitter;
-import org.apache.tika.pipes.fetcher.FetchKey;
-import org.apache.tika.pipes.fetcher.RangeFetcher;
 import org.netpreserve.jwarc.MediaType;
 import org.netpreserve.jwarc.WarcPayload;
 import org.netpreserve.jwarc.WarcReader;
@@ -48,14 +39,22 @@ import org.slf4j.LoggerFactory;
 import org.tallison.cc.index.CCIndexRecord;
 import org.tallison.cc.index.io.TargetPathRewriter;
 
+import org.apache.tika.exception.TikaConfigException;
+import org.apache.tika.exception.TikaException;
+import org.apache.tika.io.TikaInputStream;
+import org.apache.tika.metadata.Metadata;
+import org.apache.tika.pipes.FetchEmitTuple;
+import org.apache.tika.pipes.emitter.EmitKey;
+import org.apache.tika.pipes.emitter.StreamEmitter;
+import org.apache.tika.pipes.fetcher.FetchKey;
+import org.apache.tika.pipes.fetcher.RangeFetcher;
+
 public class FileFromCCWarcFetcher {
     private static Logger LOGGER = LoggerFactory.getLogger(FetchLiteRecordProcessor.class);
     private static Logger EXTRACTED_LOGGER = LoggerFactory.getLogger("extracted-urls");
-
-    private RangeFetcher fetcher;
     private final StreamEmitter emitter;
-
     private final TargetPathRewriter targetPathRewriter;
+    private RangeFetcher fetcher;
     private Base32 base32 = new Base32();
 
     public FileFromCCWarcFetcher(FetcherConfig fetcherConfig) throws TikaConfigException {
@@ -63,19 +62,18 @@ public class FileFromCCWarcFetcher {
         this.fetcher = fetcherConfig.newFetcher();
         this.targetPathRewriter = fetcherConfig.getTargetPathRewriter();
     }
+
     public void fetchToPath(CCIndexRecord record) throws InterruptedException {
 
-        LOGGER.debug("going to fetch {} {}->{}", record.getFilename(),
-                record.getOffset(), record.getLength());
+        LOGGER.debug("going to fetch {} {}->{}", record.getFilename(), record.getOffset(),
+                record.getLength());
         FetchEmitTuple t = new FetchEmitTuple(record.getFilename(),
                 new FetchKey("", record.getFilename(), record.getOffset(),
-                        record.getOffset() + record.getLength()-1),
-                new EmitKey()
-        );
+                        record.getOffset() + record.getLength() - 1), new EmitKey());
         byte[] warcRecordGZBytes;
         try {
             warcRecordGZBytes = fetchWarcBytes(t);
-        } catch (TikaException|IOException e) {
+        } catch (TikaException | IOException e) {
             LOGGER.warn("couldn't get bytes from cc's warc " + t, e);
             return;
         }
@@ -88,7 +86,8 @@ public class FileFromCCWarcFetcher {
     }
 
 
-    private void fetchPayload(String id, CCIndexRecord ccIndexRecord, WarcRecord record) throws IOException {
+    private void fetchPayload(String id, CCIndexRecord ccIndexRecord, WarcRecord record)
+            throws IOException {
         if (!((record instanceof WarcResponse) &&
                 record.contentType().base().equals(MediaType.HTTP))) {
             return;
@@ -115,9 +114,9 @@ public class FileFromCCWarcFetcher {
                 LOGGER.warn("IOException during digesting: " + tmp.toAbsolutePath());
                 return;
             }
-            if (! base32Sha1.equals(ccIndexRecord.getDigest())) {
-                LOGGER.warn("Bad digest for url={} ccindex={} sha1={}",
-                        id, ccIndexRecord.getDigest(), base32Sha1);
+            if (!base32Sha1.equals(ccIndexRecord.getDigest())) {
+                LOGGER.warn("Bad digest for url={} ccindex={} sha1={}", id,
+                        ccIndexRecord.getDigest(), base32Sha1);
             }
             //TODO: make digest and encoding configurable
             try (InputStream is = Files.newInputStream(tmp)) {
@@ -133,24 +132,25 @@ public class FileFromCCWarcFetcher {
                 //new ObjectArray ?
                 //url,warc_file,start,length,sha256,path
                 EXTRACTED_LOGGER.info("", ccIndexRecord.getUrl(), ccIndexRecord.getFilename(),
-                        ccIndexRecord.getOffset(), ccIndexRecord.getLength(), targetDigest, targetPath);
-            } catch (IOException|TikaException e) {
+                        ccIndexRecord.getOffset(), ccIndexRecord.getLength(), targetDigest,
+                        targetPath);
+            } catch (IOException | TikaException e) {
                 LOGGER.warn("problem writing id={}", id, e);
             }
         } finally {
             try {
-              Files.delete(tmp);
+                Files.delete(tmp);
             } catch (IOException e) {
-              LOGGER.warn("can't delete " + tmp.toAbsolutePath(), e);
+                LOGGER.warn("can't delete " + tmp.toAbsolutePath(), e);
             }
         }
     }
 
-    private void parseWarc(String id, CCIndexRecord ccIndexRecord, byte[] warcRecordGZBytes) throws IOException {
+    private void parseWarc(String id, CCIndexRecord ccIndexRecord, byte[] warcRecordGZBytes)
+            throws IOException {
         //need to leave initial inputstream open while parsing warcrecord
         //can't just parse record and return
-        try (InputStream is = new GZIPInputStream(
-                new ByteArrayInputStream(warcRecordGZBytes))) {
+        try (InputStream is = new GZIPInputStream(new ByteArrayInputStream(warcRecordGZBytes))) {
             try (WarcReader warcreader = new WarcReader(is)) {
 
                 //should be a single warc per file
@@ -163,12 +163,13 @@ public class FileFromCCWarcFetcher {
         }
     }
 
-    private byte[] fetchWarcBytes(FetchEmitTuple t) throws TikaException, InterruptedException, IOException {
+    private byte[] fetchWarcBytes(FetchEmitTuple t)
+            throws TikaException, InterruptedException, IOException {
 
         ByteArrayOutputStream bos = new ByteArrayOutputStream();
         FetchKey k = t.getFetchKey();
-        try (InputStream is = fetcher.fetch(k.getFetchKey(),
-                k.getRangeStart(), k.getRangeEnd(), new Metadata())) {
+        try (InputStream is = fetcher.fetch(k.getFetchKey(), k.getRangeStart(), k.getRangeEnd(),
+                new Metadata())) {
             IOUtils.copy(is, bos);
         }
         return bos.toByteArray();
