@@ -44,8 +44,8 @@
     <Root level="debug" additivity="false">
       <AppenderRef ref="Console"/>
     </Root>
-    <logger name="extracted" level="INFO" additivity="false">
-      <AppenderRef ref="extracted"/>
+    <logger name="extracted-urls" level="INFO" additivity="false">
+      <AppenderRef ref="extracted-urls"/>
     </logger>
     <logger name="truncated-urls" level="INFO" additivity="false">
       <AppenderRef ref="truncated-urls"/>

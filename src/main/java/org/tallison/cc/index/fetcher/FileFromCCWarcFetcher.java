@@ -50,7 +50,7 @@ import org.tallison.cc.index.io.TargetPathRewriter;
 
 public class FileFromCCWarcFetcher {
     private static Logger LOGGER = LoggerFactory.getLogger(FetchLiteRecordProcessor.class);
-    private static Logger EXTRACTED_LOGGER = LoggerFactory.getLogger("extracted");
+    private static Logger EXTRACTED_LOGGER = LoggerFactory.getLogger("extracted-urls");
 
     private RangeFetcher fetcher;
     private final StreamEmitter emitter;
