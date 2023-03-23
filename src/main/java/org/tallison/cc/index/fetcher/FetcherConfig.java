@@ -53,13 +53,10 @@ public class FetcherConfig {
 
     //maximum files extracted from cc
     private long maxFilesExtracted = -1;
-    //maximum files written to 'truncated' list.
+    //maximum files written to 'truncated' logger
     private long maxFilesTruncated = -1;
 
     private Path indexPathsFile;
-
-    private Path truncatedUrlsFile = Paths.get("urls-for-truncated-files.txt");
-
     private String targetPathPattern = "";
 
     private boolean dryRun = false;
@@ -119,13 +116,6 @@ public class FetcherConfig {
         this.indexPathsFile = indexPathsFile;
     }
 
-    public Path getTruncatedUrlsFile() {
-        return truncatedUrlsFile;
-    }
-
-    public void setTruncatedUrlsFile(Path truncatedUrlsFile) {
-        this.truncatedUrlsFile = truncatedUrlsFile;
-    }
 
     public boolean isDryRun() {
         return dryRun;

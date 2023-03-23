@@ -1,0 +1,52 @@
+{
+  "dryRun": false,
+  "fetcher": {
+    "throttleSeconds": [ 30, 120, 600, 1800]
+  },
+  "indices" : {
+    "paths": [
+      "crawl-data/CC-MAIN-2023-06/cc-index.paths.gz",
+      "crawl-data/CC-MAIN-2022-49/cc-index.paths.gz"
+    ]
+  },
+  "docs": {
+    "path": "docs"
+  },
+  "maxFilesExtracted": 100,
+  "maxFilesTruncated": 100,
+  "maxRecords": 10000000,
+  "numThreads": 3,
+  "recordSelector": {
+    "must": {
+      "status": [
+        {
+          "match": "200"
+        }
+      ]
+    },
+    "must_not": {
+      "status": [
+        {
+          "match": "300"
+        }
+      ]
+    },
+    "should": {
+      "mime": [
+        {
+          "pattern": "(?i)quicktime.*",
+          "sample": 0.7
+        }
+      ],
+      "mime_detected": [
+        {
+          "case_sensitive": false,
+          "match": "video/mp4",
+          "sample": 0.8
+        }
+      ]
+    }
+  },
+  "targetPathPattern": "xx/xx/xxx",
+  "truncatedUrlsFile": "urls-for-truncated-files.txt"
+}

@@ -127,11 +127,11 @@ The commandline:
 This fetcher will extract non-truncated `mp4` files from CommonCrawl's compound WARC files 
 and put the `mp4` files in the `docs/` directory.  Further the fetcher
 will write the URLs for the `mp4` files that CommonCrawl truncated
-to a file named `urls-for-truncated-files.txt` for later re-fetching.
+to a file named `logs/urls-truncated.csv` for later re-fetching.
 
 ### Refetch Truncated Files
 There are many options for this.  The simplest might be [wget](https://www.gnu.org/software/wget/):
-`wget -i urls-for-truncated-files.txt`
+`wget -i logs/urls-truncated.csv`
 
 See also options for [curl](https://curl.se/).  
 

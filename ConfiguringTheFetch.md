@@ -10,13 +10,14 @@ A full config file would include:
   "fetcher": {
     "throttleSeconds": [ 30, 120, 600, 1800]
   },
-  "filesDirectory": "docs",
   "indices" : {
-    "profile": "my-s3-cc-profile",
     "paths": [
       "crawl-data/CC-MAIN-2023-06/cc-index.paths.gz",
       "crawl-data/CC-MAIN-2022-49/cc-index.paths.gz"
     ]
+  },
+  "docs": {
+    "path": "docs"
   },
   "maxFilesExtracted": 10000,
   "maxFilesTruncated": -1,
@@ -53,8 +54,7 @@ A full config file would include:
       ]
     }
   },
-  "targetPathPattern": "xx/xx/xxx",
-  "truncatedUrlsFile": "urls-for-truncated-files.txt"
+  "targetPathPattern": "xx/xx/xxx"
 }
 ```
 **TODO**: come up with a logical `must` and `must_not` example.  The above is meaningless -- if a record must match 200, it will, obv, not match 300.
@@ -64,7 +64,7 @@ If set to `true`, this processes all the records but does not extract the
 non-truncated files.  This can be useful for counting files.
 
 ## MaxRecords, MaxFilesExtracted, MaxFilesTruncated
-If these are all set to `-1`, or they are not included, the fetcher will
+If these are set to `-1`, or they are not included, the fetcher will
 run against every index record.  A full run for a single month's crawl downloads nearly ~300GB of index files.
 
 If any one of the following is hit, the fetcher stops.
@@ -73,7 +73,7 @@ If any one of the following is hit, the fetcher stops.
 or not the file selector has selected a record for processing.
 2. `maxFilesExtracted` sets a maximum on the non-truncated records that are extracted
 from the Common Crawl data set.
-3. `maxFilesTruncated` sets a maximum on the URLs written to `urls-for-truncated-files.txt`.
+3. `maxFilesTruncated` sets a maximum on the URLs written to `logs/urls-truncated.csv`.
 
 ## Indices
 The `indices` element is required. The `paths` element inside the

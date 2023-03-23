@@ -19,14 +19,39 @@
   under the License.
 -->
 <Configuration status="WARN">
+  <Properties>
+    <Property name="extracted.header">url,warc_file,offset,length,sha256,path</Property>
+    <Property name="truncated.short.header">url</Property>
+    <Property name="truncated.full.header">url,warc_file,offset,length</Property>
+  </Properties>
   <Appenders>
     <Console name="Console" target="SYSTEM_ERR">
       <PatternLayout pattern="%-5p [%t] %d{HH:mm:ss,SSS} %c %m%n"/>
     </Console>
+    <File name="extracted-urls" fileName="logs/extracted-urls.csv" append="false" createOnDemand="true">
+      <CsvParameterLayout delimiter="," header="${extracted.header}\n"
+                          charset="UTF-8" format="Excel"/>
+    </File>
+    <File name="truncated-urls" fileName="logs/urls-truncated.csv" append="false" createOnDemand="true">
+      <CsvParameterLayout delimiter="," charset="UTF-8" format="Excel"/>
+    </File>
+    <File name="truncated-urls-full" fileName="logs/urls-truncated-full.csv" append="false" createOnDemand="true">
+      <CsvParameterLayout delimiter="," header="${truncated.full.header}\n"
+                          charset="UTF-8" format="Excel"/>
+    </File>
   </Appenders>
   <Loggers>
-    <Root level="info">
+    <Root level="debug" additivity="false">
       <AppenderRef ref="Console"/>
     </Root>
+    <logger name="extracted" level="INFO" additivity="false">
+      <AppenderRef ref="extracted"/>
+    </logger>
+    <logger name="truncated-urls" level="INFO" additivity="false">
+      <AppenderRef ref="truncated-urls"/>
+    </logger>
+    <logger name="truncated-urls-full" level="INFO" additivity="false">
+      <AppenderRef ref="truncated-urls-full"/>
+    </logger>
   </Loggers>
 </Configuration>

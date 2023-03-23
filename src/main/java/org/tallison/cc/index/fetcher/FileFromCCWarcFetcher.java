@@ -46,11 +46,11 @@ import org.netpreserve.jwarc.WarcResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tallison.cc.index.CCIndexRecord;
-import org.tallison.cc.index.io.BackoffHttpFetcher;
 import org.tallison.cc.index.io.TargetPathRewriter;
 
 public class FileFromCCWarcFetcher {
     private static Logger LOGGER = LoggerFactory.getLogger(FetchLiteRecordProcessor.class);
+    private static Logger EXTRACTED_LOGGER = LoggerFactory.getLogger("extracted");
 
     private RangeFetcher fetcher;
     private final StreamEmitter emitter;
@@ -130,6 +130,10 @@ public class FileFromCCWarcFetcher {
             Metadata metadata = new Metadata();
             try (InputStream is = TikaInputStream.get(tmp, metadata)) {
                 emitter.emit(targetPath, is, new Metadata());
+                //new ObjectArray ?
+                //url,warc_file,start,length,sha256,path
+                EXTRACTED_LOGGER.info("", ccIndexRecord.getUrl(), ccIndexRecord.getFilename(),
+                        ccIndexRecord.getOffset(), ccIndexRecord.getLength(), targetDigest, targetPath);
             } catch (IOException|TikaException e) {
                 LOGGER.warn("problem writing id={}", id, e);
             }

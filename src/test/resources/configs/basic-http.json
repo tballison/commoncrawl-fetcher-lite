@@ -1,9 +1,8 @@
 {
   "numThreads":3,
-  "maxRecords":-1,
-  "maxFilesExtracted":10000,
-  "maxFilesTruncated":-1,
-  "truncatedUrlsFile":"truncated.txt",
+  "maxRecords": 1000000,
+  "maxFilesExtracted": 100,
+  "maxFilesTruncated": 1000,
   "fetcher": {
     "throttleSeconds": [ 30, 120, 600, 1800]
   },

@@ -26,6 +26,7 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Collections;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
@@ -57,14 +58,13 @@ import org.tallison.cc.index.io.BackoffHttpFetcher;
 
 /**
  * This is a lighter class that doesn't rely on a database
- * to extract files from CC and write a list of truncated urls.
+ * to extract files from CC and log a list of truncated urls.
  */
 public class CCFileFetcher {
 
     private static final String STOP_SEMAPHORE = StringUtils.EMPTY;
     private static final Long INDEX_WORKER_ID = 1l;
     private static final Long INDEX_READER_ID = 2l;
-    private static final Long TRUNCATED_WRITER_ID = 3l;
     private static final Logger LOGGER = LoggerFactory.getLogger(CCFileFetcher.class);
 
     public static void main(String[] args) throws Exception {
@@ -75,33 +75,29 @@ public class CCFileFetcher {
 
     private static void execute(FetcherConfig fetcherConfig) throws TikaException {
         ArrayBlockingQueue<FetchEmitTuple> indexPathsList = new ArrayBlockingQueue<>(1000);
-        ArrayBlockingQueue<String> truncatedUrls = new ArrayBlockingQueue<>(1000);
         //IndexPathsReader reads a file containing a list of cc-index.paths files
         //and writes the literal gz files (cc-index/collections/CC-MAIN-2023-06/indexes/cdx-00000.gz)
         //to indexPathsList
 
-        //TruncatedURLWriter writes the urls that had truncated data to a text file
 
         //IndexWorker reads a single index.gz file at a time and processes each record
-        //It fetches non truncated files, and writes truncated files to the TruncatedURLWriter
-        int totalThreads = fetcherConfig.getNumThreads() + 2;
+        //It fetches non truncated files and logs truncated files
+        int totalThreads = fetcherConfig.getNumThreads() + 1;
 
         ExecutorService executorService = Executors.newFixedThreadPool(totalThreads);
         ExecutorCompletionService<Long> executorCompletionService =
                 new ExecutorCompletionService<>(executorService);
 
-        TruncatedURLWriter truncatedURLWriter =
-                new TruncatedURLWriter(truncatedUrls, fetcherConfig.getTruncatedUrlsFile());
-
+        IndexIterator indexIterator = fetcherConfig.getIndexIterator();
+        indexIterator.initialize(Collections.EMPTY_MAP);
         executorCompletionService.submit(
-                new CallablePipesIterator(fetcherConfig.getIndexIterator(), indexPathsList));
-        executorCompletionService.submit(truncatedURLWriter);
+                new CallablePipesIterator(indexIterator, indexPathsList));
         CCIndexReaderCounter counter = new CCIndexReaderCounter();
         int finishedWorkers = 0;
         try {
             for (int i = 0; i < fetcherConfig.getNumThreads(); i++) {
                 FetchLiteRecordProcessor processor =
-                        new FetchLiteRecordProcessor(fetcherConfig, truncatedUrls, counter);
+                        new FetchLiteRecordProcessor(fetcherConfig, counter);
                 executorCompletionService.submit(new IndexWorker(fetcherConfig, indexPathsList, processor));
             }
 
@@ -116,22 +112,6 @@ public class CCFileFetcher {
                         finishedWorkers++;
                     } else if (f.equals(INDEX_READER_ID)) {
                         LOGGER.info("Index paths reader successfully completed");
-                    } else if (f.equals(TRUNCATED_WRITER_ID)) {
-                        LOGGER.warn("Truncated writer finished but should not have!!!");
-                    }
-                }
-            }
-            //now tell the truncated writer to stop
-            truncatedUrls.put(STOP_SEMAPHORE);
-            boolean truncatedWriterWriting = true;
-            while (truncatedWriterWriting) {
-                Future<Long> future = executorCompletionService.poll(60, TimeUnit.SECONDS);
-                if (future != null) {
-                    Long f = future.get();
-                    LOGGER.debug("completed {}", f);
-                    if (f == TRUNCATED_WRITER_ID) {
-                        truncatedWriterWriting = false;
-                        LOGGER.info("truncated writer successfully completed");
                     }
                 }
             }
@@ -231,33 +211,6 @@ public class CCFileFetcher {
             LOGGER.info("finished processing index gz in ({}) ms: {}",
                     String.format("%,d", elapsed), fetchEmitTuple.getFetchKey().getFetchKey());
             return true;
-        }
-    }
-
-    private static class TruncatedURLWriter implements Callable<Long> {
-        private final ArrayBlockingQueue<String> truncatedUrls;
-        private final Path truncatedUrlFile;
-
-        private TruncatedURLWriter(ArrayBlockingQueue<String> truncatedUrls,
-                                   Path truncatedUrlFile) {
-            this.truncatedUrls = truncatedUrls;
-            this.truncatedUrlFile = truncatedUrlFile;
-        }
-
-        @Override
-        public Long call() throws Exception {
-            try (BufferedWriter writer = Files.newBufferedWriter(truncatedUrlFile,
-                    StandardCharsets.UTF_8)) {
-                while (true) {
-                    //blocks forever
-                    String url = truncatedUrls.take();
-                    if (url == STOP_SEMAPHORE) {
-                        return TRUNCATED_WRITER_ID;
-                    }
-                    url = url.replaceAll("[\r\n]", " ");
-                    writer.write(url + "\n");
-                }
-            }
         }
     }
 }
