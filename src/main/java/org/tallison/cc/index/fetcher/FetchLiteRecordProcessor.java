@@ -78,7 +78,14 @@ public class FetchLiteRecordProcessor extends AbstractRecordProcessor {
             }
             String url = r.getUrl();
             TRUNCATED_URLS_LOGGER.info("", url);
-            TRUNCATED_URLS_FULL_LOGGER.info("", url, r.getFilename(), r.getOffset(), r.getLength());
+            //url,mime_detected,warc_file,warc_offset,warc_length,truncated
+            TRUNCATED_URLS_FULL_LOGGER.info("",
+                    url,
+                    r.getNormalizedMimeDetected(),
+                    r.getFilename(),
+                    r.getOffset(),
+                    r.getLength(),
+                    r.getTruncated());
             return true;
         } else {
             long extracted = counter.getFilesExtracted().incrementAndGet();

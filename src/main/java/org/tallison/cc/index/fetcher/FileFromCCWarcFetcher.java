@@ -104,6 +104,7 @@ public class FileFromCCWarcFetcher {
         }
 
         Path tmp = Files.createTempFile("ccfile-fetcher-", "");
+
         try {
             Files.copy(payload.get().body().stream(), tmp, StandardCopyOption.REPLACE_EXISTING);
             String targetDigest = null;
@@ -125,14 +126,25 @@ public class FileFromCCWarcFetcher {
                 LOGGER.warn("IOException during digesting: " + tmp.toAbsolutePath());
                 return;
             }
+            long length = -1;
+            try {
+                length = Files.size(tmp);
+            } catch (IOException e) {
+                LOGGER.warn("IOException during digesting: " + tmp.toAbsolutePath());
+                return;
+            }
             String targetPath = targetPathRewriter.rewrite(targetDigest);
             Metadata metadata = new Metadata();
             try (InputStream is = TikaInputStream.get(tmp, metadata)) {
                 emitter.emit(targetPath, is, new Metadata());
                 //new ObjectArray ?
-                //url,warc_file,start,length,sha256,path
-                EXTRACTED_LOGGER.info("", ccIndexRecord.getUrl(), ccIndexRecord.getFilename(),
-                        ccIndexRecord.getOffset(), ccIndexRecord.getLength(), targetDigest,
+                //url,mime_detected,warc_file,warc_offset,warc_length,sha256,length,path
+                EXTRACTED_LOGGER.info("", ccIndexRecord.getUrl(),
+                        ccIndexRecord.getNormalizedMimeDetected(),
+                        ccIndexRecord.getFilename(),
+                        ccIndexRecord.getOffset(),
+                        ccIndexRecord.getLength(),
+                        targetDigest, length,
                         targetPath);
             } catch (IOException | TikaException e) {
                 LOGGER.warn("problem writing id={}", id, e);
