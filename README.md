@@ -120,6 +120,7 @@ There are many configuration options -- see [ConfiguringTheFetch](ConfiguringThe
     }
 }
 ```
+**NOTE:** For each month's crawl, this process needs to download ~300GB of index data via HTTPS or S3.
 
 ### 2. Run the Code
 Users must have Java (>= 11) installed.  To check your version: `java -version`.
@@ -174,13 +175,11 @@ Some features that could be added are included below.
 
 1. Add more features to the record selector -- handle numeric values (e.g. `int`) and allow for `gt`, `gte` and `range` options
 2. Add a refetcher that stores the refetched files with the same policy that the fetcher stores files (same file+directory naming strategy) and potentially writes a table of URLs and fetched digest.
-3. Allow processing of index files from a local cache.  For exploration, it can be useful to process index files multiple times.  There is no reason to pull 300MB over http for each investigation.
-4. Allow a different extracted file naming scheme -- CC's sha1 or any encoding+digest combination?
-5. Allow extraction of truncated files.
-6. Allow counting of mimes or other features -- not just those selected.
-7. Store fetch status and refetch status in an actual database -- against the design goals of this project. LOL...
-8. Write csv with URL+extracted digest info so that users can link bytes to URLs.
-9. ...
+3. Allow a different extracted file naming scheme -- CC's sha1 or any encoding+digest combination?
+4. Allow extraction of truncated files.
+5. Allow counting of mimes or other features -- not just those selected.
+6. Store fetch status and refetch status in an actual database -- against the design goals of this project. LOL...
+7...
 
 ## Running the Release
 
