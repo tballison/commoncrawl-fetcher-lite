@@ -264,3 +264,14 @@ crawl), but not nearly all of the 3 billion pages, you could use:
     }
 ...
 ```
+
+## Logging
+We are currently using three special loggers to write:
+1. `logs/extracted-urls.csv` -- contains information about successfully extracted files
+2. `logs/urls-truncated.csv` -- contains a list of urls that were truncated and need to be refetched
+3. `logs/urls-truncated-full.csv` -- contains more information about the truncated urls
+
+To modify this behavior, start with `src/main/resources/log4j2.xml`. Customize
+it as you wish and then specify your custom logging on the commandline:
+
+`java -Dlog4j.configurationFile=path/to/custom-log4j2.xml -jar commoncrawl-fetcher-lite-X.Y.X.jar config.json`
