@@ -48,4 +48,4 @@ jobs:
           draft: true
           title: ${{ github.ref_name }} Development Build
           files: |
-            commoncrawl-fetcher-lite-*.jar
+            ./target/commoncrawl-fetcher-lite-*.jar
