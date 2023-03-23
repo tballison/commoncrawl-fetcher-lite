@@ -23,7 +23,7 @@ appended to other gzipped WARC files to create compound WARC files stored in AWS
 For a single crawl, there are ~90,000 compound WARC files, each ~1 GB in size.  
 Uncompressed, a single's month crawl can weigh in at ~400TiB.
 
->**Note** Common Crawl truncates files at **1MB**. Researchers who want complete files must refetch
+>**Note:** Common Crawl truncates files at **1MB**. Researchers who want complete files must refetch
 truncated files from the original URLs.
 
 The index files and the compound WARC files are accessible via `S3` (`s3://commoncrawl/`) and HTTPS (`https://data.commoncrawl.org/`).
@@ -68,10 +68,13 @@ The JSON object above:
 9. `status` -- the http status returned during the fetch
 10. `redirect` -- (not included in the example) if a `302`, the redirect URL is stored
 11. `truncated` -- (not included in the example) if the file was truncated, this is populated with a cause. The most common cause is `length`.
-11. `url` -- the target URL for this file
+12. `url` -- the target URL for this file
+
+**Note:** AWS does not allow anonymous access to Common Crawl's S3 bucket.  If you'd prefer to use
+S3 instead of HTTPS, see [ConfiguringTheFetch](ConfiguringTheFetch.md).
 
 ## Steps to run the fetcher
-### Specify What is Wanted
+### 1. Specify What is Wanted
 At a minimum, the user defines a few parameters in a JSON file ([minimal-config](examples/minimal-config.json), for example).
 
 In the following, we have given a minimal example for extracting all files identified as `mp4` files
@@ -118,18 +121,18 @@ There are many configuration options -- see [ConfiguringTheFetch](ConfiguringThe
 }
 ```
 
-### Run the Code
+### 2. Run the Code
 Users must have Java (>= 11) installed.  To check your version: `java -version`.
 
 The commandline:
 `java -jar commoncrawl-fetcher-lite-X.Y.Z.jar minimal-config.json`
 
 This fetcher will extract non-truncated `mp4` files from CommonCrawl's compound WARC files 
-and put the `mp4` files in the `docs/` directory.  Further the fetcher
+and put the `mp4` files in the `docs/` directory.  The fetcher
 will write the URLs for the `mp4` files that CommonCrawl truncated
 to a file named `logs/urls-truncated.csv` for later re-fetching.
 
-### Refetch Truncated Files
+### 3. Refetch Truncated Files
 There are many options for this.  The simplest might be [wget](https://www.gnu.org/software/wget/):
 `wget -i logs/urls-truncated.csv`
 
