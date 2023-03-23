@@ -16,6 +16,9 @@
  */
 package org.tallison.cc.index.fetcher;
 
+import java.nio.file.Files;
+import java.nio.file.Paths;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -24,8 +27,6 @@ import org.slf4j.LoggerFactory;
  * to extract files from CC and write a list of truncated urls.
  */
 public class CCFetcherCli {
-
-    private static final Logger LOGGER = LoggerFactory.getLogger(CCFetcherCli.class);
 
     public static void main(String[] args) throws Exception {
         String command = args[0];
@@ -36,6 +37,8 @@ public class CCFetcherCli {
             CCIndexFetcher.main(new String[]{args[1]});
         } else if (command.equals("CountMimes")) {
             CCMimeCounter.main(new String[]{args[1]});
+        } else if (Files.isRegularFile(Paths.get(command))) {
+            CCFileFetcher.main(new String[]{args[0]});
         } else {
             System.out.println("Must start with a command: Fetch, FetchIndices or CountMimes");
         }
