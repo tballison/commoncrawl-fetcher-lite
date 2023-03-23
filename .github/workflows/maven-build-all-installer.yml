@@ -24,7 +24,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
       - name: Set up JDK 11
@@ -37,7 +37,7 @@ jobs:
       - name: "Display family/arch"
         run: mvn enforcer:display-info
       - name: "Build with Maven"
-        run: mvn -B clean install -P app-release --file pom.xml
+        run: mvn -B clean install --file pom.xml
       - name: Update Automatic Release
         uses: marvinpinto/action-automatic-releases@latest
         # see https://docs.github.com/en/actions/learn-github-actions/contexts#github-context
@@ -48,4 +48,4 @@ jobs:
           draft: true
           title: ${{ github.ref_name }} Development Build
           files: |
-            ./target/commoncrawl-fetcher-lite-*.jar
+            commoncrawl-fetcher-lite-*.jar
