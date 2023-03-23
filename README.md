@@ -70,8 +70,8 @@ The JSON object above:
 11. `truncated` -- (not included in the example) if the file was truncated, this is populated with a cause. The most common cause is `length`.
 12. `url` -- the target URL for this file
 
-**Note:** AWS does not allow anonymous access to Common Crawl's S3 bucket.  If you'd prefer to use
-S3 instead of HTTPS, see [ConfiguringTheFetch](ConfiguringTheFetch.md).
+**Note:** AWS does not allow anonymous access to Common Crawl's S3 bucket -- see [access-the-data](https://commoncrawl.org/access-the-data/).
+If you'd prefer to use S3 instead of HTTPS, see [ConfiguringTheFetch](ConfiguringTheFetch.md).
 
 ## Steps to run the fetcher
 ### 1. Specify What is Wanted
@@ -181,8 +181,9 @@ Some features that could be added are included below.
 8. Write csv with URL+extracted digest info so that users can link bytes to URLs.
 9. ...
 
-# Release
+## Running the Release
 
 The release is currently triggered by pushing a tag starting with 'v'.
 
 ```git tag -a "v1.0.0-alpha1" -m "v1.0.0-alpha1-release" && git push origin v1.0.0-alpha1```
+
