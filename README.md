@@ -182,4 +182,4 @@ Some features that could be added are included below.
 
 The release is currently triggered by pushing a tag starting with 'v'.
 
-```git tag -a "v1.0.0-alpha1" -m "v1.0.0-alpha1-release && git push origin v1.0.0-alpha1```
+```git tag -a "v1.0.0-alpha1" -m "v1.0.0-alpha1-release" && git push origin v1.0.0-alpha1```
