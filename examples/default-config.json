@@ -47,6 +47,5 @@
       ]
     }
   },
-  "targetPathPattern": "xx/xx/xxx",
-  "truncatedUrlsFile": "urls-for-truncated-files.txt"
+  "targetPathPattern": "xx/xx/xxx"
 }

@@ -50,7 +50,7 @@ public class FetchLiteRecordProcessor extends AbstractRecordProcessor {
     @Override
     public boolean process(String json) throws IOException, InterruptedException {
         long totalRead = counter.getRecordsRead().incrementAndGet();
-        if (totalRead % 100000 == 0) {
+        if (totalRead % 1000000 == 0) {
             LOGGER.info("processed: {}", counter);
         }
         if (fetcherConfig.getMaxRecords() > -1 && totalRead >= fetcherConfig.getMaxRecords()) {
