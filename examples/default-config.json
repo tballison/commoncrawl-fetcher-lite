@@ -1,17 +1,21 @@
 {
-  "dryRun": false,
+  "dryRun": true,
   "fetcher": {
-    "basePath": "/Users/allison/data/cc/indices"
+    "throttleSeconds": [ 30, 120, 600, 1800]
   },
   "indices" : {
     "paths": [
-      "cc-index/collections/CC-MAIN-2023-06/indexes/cdx-00000.gz"
+      "crawl-data/CC-MAIN-2023-06/cc-index.paths.gz",
+      "crawl-data/CC-MAIN-2022-49/cc-index.paths.gz"
     ]
   },
   "docs": {
-    "path": "/Users/allison/data/cc/indices"
+    "path": "docs"
   },
-  "numThreads": 10,
+  "maxFilesExtracted": 10000,
+  "maxFilesTruncated": -1,
+  "maxRecords": -1,
+  "numThreads": 3,
   "recordSelector": {
     "must": {
       "status": [
@@ -20,10 +24,13 @@
         }
       ]
     },
-    "must_not": {
-      "status": [
+    "should": {
+      "mime_detected": [
         {
-          "match": "300"
+          "match": "video/mp4"
+        },
+        {
+          "match": "video/quicktime"
         }
       ]
     }

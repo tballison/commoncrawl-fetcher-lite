@@ -23,7 +23,7 @@ import java.util.regex.Pattern;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.tallison.cc.index.fetcher.FetcherConfig;
+import org.tallison.cc.index.extractor.ExtractorConfig;
 
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.io.TikaInputStream;
@@ -33,7 +33,7 @@ import org.apache.tika.pipes.fetcher.http.HttpFetcher;
 
 /**
  * We need this because it allows for back-off on 503
- * and it adds the protocol+host base to the paths: {@link org.tallison.cc.index.fetcher.FetcherConfig#CC_HTTPS_BASE}
+ * and it adds the protocol+host base to the paths: {@link ExtractorConfig#CC_HTTPS_BASE}
  */
 public class BackoffHttpFetcher extends HttpFetcher {
 
@@ -61,9 +61,9 @@ public class BackoffHttpFetcher extends HttpFetcher {
     private String getUrl(String fetchKey) {
         if (!fetchKey.startsWith("http")) {
             if (fetchKey.startsWith("/")) {
-                return FetcherConfig.CC_HTTPS_BASE + fetchKey;
+                return ExtractorConfig.CC_HTTPS_BASE + fetchKey;
             } else {
-                return FetcherConfig.CC_HTTPS_BASE + "/" + fetchKey;
+                return ExtractorConfig.CC_HTTPS_BASE + "/" + fetchKey;
             }
         }
         return fetchKey;

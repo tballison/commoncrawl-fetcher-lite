@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.tallison.cc.index.fetcher;
+package org.tallison.cc.index.extractor;
 
 import java.io.File;
 import java.io.IOException;
@@ -52,12 +52,12 @@ public class CCIndexFetcher {
     private static final Logger LOGGER = LoggerFactory.getLogger(CCIndexFetcher.class);
 
     public static void main(String[] args) throws Exception {
-        FetcherConfig fetcherConfig =
-                new ObjectMapper().readValue(new File(args[0]), FetcherConfig.class);
+        ExtractorConfig fetcherConfig =
+                new ObjectMapper().readValue(new File(args[0]), ExtractorConfig.class);
         execute(fetcherConfig);
     }
 
-    private static void execute(FetcherConfig fetcherConfig) throws Exception {
+    private static void execute(ExtractorConfig fetcherConfig) throws Exception {
         ArrayBlockingQueue<FetchEmitTuple> indexPathsList = new ArrayBlockingQueue<>(1000);
         //IndexPathsReader reads a file containing a list of cc-index.paths files
         //and writes the literal gz files (cc-index/collections/CC-MAIN-2023-06/indexes/cdx-00000.gz)
@@ -104,10 +104,10 @@ public class CCIndexFetcher {
 
     private static class IndexFetcher implements Callable<Long> {
 
-        private final FetcherConfig fetcherConfig;
+        private final ExtractorConfig fetcherConfig;
         private final ArrayBlockingQueue<FetchEmitTuple> indexPathsList;
 
-        public IndexFetcher(FetcherConfig fetcherConfig,
+        public IndexFetcher(ExtractorConfig fetcherConfig,
                             ArrayBlockingQueue<FetchEmitTuple> indexPathsList) {
             this.fetcherConfig = fetcherConfig;
             this.indexPathsList = indexPathsList;

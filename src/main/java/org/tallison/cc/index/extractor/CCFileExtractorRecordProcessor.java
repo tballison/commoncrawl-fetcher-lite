@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.tallison.cc.index.fetcher;
+package org.tallison.cc.index.extractor;
 
 import java.io.IOException;
 import java.util.Optional;
@@ -28,19 +28,19 @@ import org.tallison.cc.index.CCIndexRecord;
 import org.apache.tika.exception.TikaConfigException;
 import org.apache.tika.utils.StringUtils;
 
-public class FetchLiteRecordProcessor extends AbstractRecordProcessor {
+public class CCFileExtractorRecordProcessor extends AbstractRecordProcessor {
 
-    private static Logger LOGGER = LoggerFactory.getLogger(FetchLiteRecordProcessor.class);
+    private static Logger LOGGER = LoggerFactory.getLogger(CCFileExtractorRecordProcessor.class);
     private static Logger TRUNCATED_URLS_LOGGER = LoggerFactory.getLogger("truncated-urls");
     private static Logger TRUNCATED_URLS_FULL_LOGGER =
             LoggerFactory.getLogger("truncated-urls-full");
 
-    private final FetcherConfig fetcherConfig;
+    private final ExtractorConfig fetcherConfig;
     private final CCIndexReaderCounter counter;
 
     private final FileFromCCWarcExtractor fileFromCCWarcFetcher;
 
-    public FetchLiteRecordProcessor(FetcherConfig fetcherConfig, CCIndexReaderCounter counter)
+    public CCFileExtractorRecordProcessor(ExtractorConfig fetcherConfig, CCIndexReaderCounter counter)
             throws TikaConfigException, IOException {
         this.fetcherConfig = fetcherConfig;
         this.counter = counter;

@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.tallison.cc.index.fetcher;
+package org.tallison.cc.index.extractor;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -50,14 +50,14 @@ import org.apache.tika.pipes.fetcher.FetchKey;
 import org.apache.tika.pipes.fetcher.RangeFetcher;
 
 public class FileFromCCWarcExtractor {
-    private static Logger LOGGER = LoggerFactory.getLogger(FetchLiteRecordProcessor.class);
+    private static Logger LOGGER = LoggerFactory.getLogger(CCFileExtractorRecordProcessor.class);
     private static Logger EXTRACTED_LOGGER = LoggerFactory.getLogger("extracted-urls");
     private final StreamEmitter emitter;
     private final TargetPathRewriter targetPathRewriter;
     private RangeFetcher fetcher;
     private Base32 base32 = new Base32();
 
-    public FileFromCCWarcExtractor(FetcherConfig fetcherConfig) throws TikaConfigException {
+    public FileFromCCWarcExtractor(ExtractorConfig fetcherConfig) throws TikaConfigException {
         this.emitter = fetcherConfig.newEmitter();
         this.fetcher = (RangeFetcher) fetcherConfig.newFetcher();
         this.targetPathRewriter = fetcherConfig.getTargetPathRewriter();

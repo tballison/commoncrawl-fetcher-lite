@@ -31,7 +31,7 @@ import java.util.zip.GZIPInputStream;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import org.tallison.cc.index.fetcher.FetcherConfig;
+import org.tallison.cc.index.extractor.ExtractorConfig;
 import org.tallison.cc.index.io.BackoffHttpFetcher;
 
 import org.apache.tika.config.Initializable;
@@ -65,8 +65,8 @@ public class IndexIterator extends PipesIterator implements Initializable {
             fetcher = new S3Fetcher();
             ((S3Fetcher) fetcher).setProfile(profile);
             ((S3Fetcher) fetcher).setCredentialsProvider("profile");
-            ((S3Fetcher) fetcher).setBucket(FetcherConfig.CC_S3_BUCKET);
-            ((S3Fetcher) fetcher).setRegion(FetcherConfig.CC_REGION);
+            ((S3Fetcher) fetcher).setBucket(ExtractorConfig.CC_S3_BUCKET);
+            ((S3Fetcher) fetcher).setRegion(ExtractorConfig.CC_REGION);
         } else if (basePath != null) {
             fetcher = new FileSystemFetcher();
             ((FileSystemFetcher) fetcher).setBasePath(basePath);

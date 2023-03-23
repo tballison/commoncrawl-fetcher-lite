@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.tallison.cc.index.fetcher;
+package org.tallison.cc.index.extractor;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedReader;
@@ -66,8 +66,8 @@ import org.apache.tika.pipes.pipesiterator.PipesIterator;
 import org.apache.tika.utils.StringUtils;
 
 /**
- * This is a lighter class that doesn't rely on a database
- * to extract files from CC and log a list of truncated urls.
+ * This counts mime_detected.  Use a regular file selector to include
+ * only urls that had a 200, e.g.
  */
 public class CCMimeCounter {
 
@@ -76,12 +76,12 @@ public class CCMimeCounter {
     private static final Logger LOGGER = LoggerFactory.getLogger(CCMimeCounter.class);
 
     public static void main(String[] args) throws Exception {
-        FetcherConfig fetcherConfig =
-                new ObjectMapper().readValue(new File(args[0]), FetcherConfig.class);
+        ExtractorConfig fetcherConfig =
+                new ObjectMapper().readValue(new File(args[0]), ExtractorConfig.class);
         execute(fetcherConfig);
     }
 
-    private static void execute(FetcherConfig fetcherConfig) throws IOException, TikaException {
+    private static void execute(ExtractorConfig fetcherConfig) throws IOException, TikaException {
         ArrayBlockingQueue<FetchEmitTuple> indexPathsList = new ArrayBlockingQueue<>(1000);
         //IndexPathsReader reads a file containing a list of cc-index.paths files
         //and writes the literal gz files (cc-index/collections/CC-MAIN-2023-06/indexes/cdx-00000.gz)
@@ -201,7 +201,7 @@ public class CCMimeCounter {
 
         private final Fetcher fetcher;
 
-        IndexWorker(FetcherConfig fetcherConfig, ArrayBlockingQueue<FetchEmitTuple> indexUrls,
+        IndexWorker(ExtractorConfig fetcherConfig, ArrayBlockingQueue<FetchEmitTuple> indexUrls,
                     AbstractRecordProcessor recordProcessor) throws TikaException {
             this.indexUrls = indexUrls;
             this.recordProcessor = recordProcessor;
@@ -224,7 +224,6 @@ public class CCMimeCounter {
                     indexUrls.put(PipesIterator.COMPLETED_SEMAPHORE);
                     return INDEX_WORKER_ID;
                 }
-                LOGGER.trace(indexUrl.toString());
                 shouldContinue = processFile(indexUrl, recordProcessor);
             }
             return INDEX_WORKER_ID;
@@ -280,11 +279,11 @@ public class CCMimeCounter {
     }
 
     private static class DetectedMimeCounter extends AbstractRecordProcessor {
-        private final FetcherConfig fetcherConfig;
+        private final ExtractorConfig fetcherConfig;
         private final CCIndexReaderCounter counter;
         private final Map<String, MutableLong> totalCounts = new HashMap<>();
         private final Map<String, MutableLong> truncatedCounts = new HashMap<>();
-        public DetectedMimeCounter(FetcherConfig fetcherConfig, CCIndexReaderCounter counter) {
+        public DetectedMimeCounter(ExtractorConfig fetcherConfig, CCIndexReaderCounter counter) {
             this.fetcherConfig = fetcherConfig;
             this.counter = counter;
         }

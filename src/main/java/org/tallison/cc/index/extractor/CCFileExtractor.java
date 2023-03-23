@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.tallison.cc.index.fetcher;
+package org.tallison.cc.index.extractor;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedReader;
@@ -64,12 +64,12 @@ public class CCFileExtractor {
     private static final Logger LOGGER = LoggerFactory.getLogger(CCFileExtractor.class);
 
     public static void main(String[] args) throws Exception {
-        FetcherConfig fetcherConfig =
-                new ObjectMapper().readValue(new File(args[0]), FetcherConfig.class);
+        ExtractorConfig fetcherConfig =
+                new ObjectMapper().readValue(new File(args[0]), ExtractorConfig.class);
         execute(fetcherConfig);
     }
 
-    private static void execute(FetcherConfig fetcherConfig) throws TikaException {
+    private static void execute(ExtractorConfig fetcherConfig) throws TikaException {
         ArrayBlockingQueue<FetchEmitTuple> indexPathsList = new ArrayBlockingQueue<>(1000);
         //IndexPathsReader reads a file containing a list of cc-index.paths files
         //and writes the literal gz files (cc-index/collections/CC-MAIN-2023-06/indexes/cdx-00000.gz)
@@ -91,8 +91,8 @@ public class CCFileExtractor {
         int finishedWorkers = 0;
         try {
             for (int i = 0; i < fetcherConfig.getNumThreads(); i++) {
-                FetchLiteRecordProcessor processor =
-                        new FetchLiteRecordProcessor(fetcherConfig, counter);
+                CCFileExtractorRecordProcessor processor =
+                        new CCFileExtractorRecordProcessor(fetcherConfig, counter);
                 executorCompletionService.submit(
                         new IndexWorker(fetcherConfig, indexPathsList, processor));
             }
@@ -133,7 +133,7 @@ public class CCFileExtractor {
 
         private final Fetcher fetcher;
 
-        IndexWorker(FetcherConfig fetcherConfig, ArrayBlockingQueue<FetchEmitTuple> indexUrls,
+        IndexWorker(ExtractorConfig fetcherConfig, ArrayBlockingQueue<FetchEmitTuple> indexUrls,
                     AbstractRecordProcessor recordProcessor) throws TikaException {
             this.indexUrls = indexUrls;
             this.recordProcessor = recordProcessor;

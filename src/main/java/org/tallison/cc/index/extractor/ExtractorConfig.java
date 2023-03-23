@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.tallison.cc.index.fetcher;
+package org.tallison.cc.index.extractor;
 
 import java.nio.file.Path;
 import java.util.Collections;
@@ -36,7 +36,7 @@ import org.apache.tika.pipes.fetcher.fs.FileSystemFetcher;
 import org.apache.tika.pipes.fetcher.s3.S3Fetcher;
 import org.apache.tika.utils.StringUtils;
 
-public class FetcherConfig {
+public class ExtractorConfig {
 
     public static String CC_HTTPS_BASE = "https://data.commoncrawl.org";
 
@@ -181,8 +181,8 @@ public class FetcherConfig {
                 fetcher = new S3Fetcher();
                 ((S3Fetcher) fetcher).setProfile(profile);
                 ((S3Fetcher) fetcher).setCredentialsProvider("profile");
-                ((S3Fetcher) fetcher).setBucket(FetcherConfig.CC_S3_BUCKET);
-                ((S3Fetcher) fetcher).setRegion(FetcherConfig.CC_REGION);
+                ((S3Fetcher) fetcher).setBucket(ExtractorConfig.CC_S3_BUCKET);
+                ((S3Fetcher) fetcher).setRegion(ExtractorConfig.CC_REGION);
             } else if (basePath != null) {
                 fetcher = new FileSystemFetcher();
                 ((FileSystemFetcher) fetcher).setBasePath(basePath);
@@ -235,7 +235,7 @@ public class FetcherConfig {
                 if (region != null) {
                     emitter.setRegion(region);
                 } else {
-                    emitter.setRegion(FetcherConfig.CC_REGION);
+                    emitter.setRegion(ExtractorConfig.CC_REGION);
                 }
                 if (!StringUtils.isBlank(prefix)) {
                     emitter.setPrefix(prefix);
