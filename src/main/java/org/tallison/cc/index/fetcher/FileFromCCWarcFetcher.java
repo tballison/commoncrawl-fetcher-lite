@@ -59,7 +59,7 @@ public class FileFromCCWarcFetcher {
     private Base32 base32 = new Base32();
 
     public FileFromCCWarcFetcher(FetcherConfig fetcherConfig) throws TikaConfigException {
-        this.emitter = fetcherConfig.getEmitter();
+        this.emitter = fetcherConfig.newEmitter();
         this.fetcher = fetcherConfig.newFetcher();
         this.targetPathRewriter = fetcherConfig.getTargetPathRewriter();
     }

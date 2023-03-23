@@ -3,7 +3,6 @@
   "maxRecords": -1,
   "maxFilesExtracted": 10000,
   "maxFilesTruncated": -1,
-  "filesDirectory": "docs",
   "truncatedUrlsFile": "truncated.txt",
   "indices" : {
     "profile": "my-profile",
@@ -14,6 +13,12 @@
   },
   "fetcher": {
     "profile": "my-profile"
+  },
+  "docs": {
+    "profile": "my-profile",
+    "bucket": "my-bucket",
+    "region": "us-east-1",
+    "prefix": "some-docs"
   },
   "recordSelector": {
     "should": {

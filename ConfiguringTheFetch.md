@@ -169,6 +169,33 @@ and it must contain a `profile` element:
 }
 ```
 
+## Docs
+The `docs` element (optional) defines where the extracted files will be written.
+If not specified, extracted files will be written to the `docs` subdirectory
+of the directory where the tool is run.
+
+To specify a different output directory on a local drive/fileshare:
+```json
+{
+  "docs": {
+    "path": "C:/Users/someone/data/docs"
+  }
+}
+```
+
+To specify an S3 bucket:
+```json
+{
+  "docs": {
+    "bucket": "my-bucket",
+    "profile": "my-profile",
+    "region": "us-east-1",
+    "prefix": "some-docs"
+  }
+}
+```
+Note that `bucket` and `profile` are required. If a region is not specified, `us-east-1` will be used.
+
 ## TargetPathPattern
 By default, extracted files are stored by the BASE64 encoded SHA-256 of the file in the
 `filesDirectory`.  For users extracting hundreds of thousands of files or more, it will

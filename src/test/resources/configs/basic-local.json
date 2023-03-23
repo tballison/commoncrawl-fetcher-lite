@@ -3,7 +3,6 @@
   "maxRecords": -1,
   "maxFilesExtracted": 10000,
   "maxFilesTruncated": -1,
-  "filesDirectory": "docs",
   "truncatedUrlsFile": "truncated.txt",
   "indices": {
     "basePath": "/Users/allison/data/cc",
@@ -14,6 +13,9 @@
   },
   "fetcher": {
     "throttleSeconds": [ 30, 120, 600, 1800]
+  },
+  "docs": {
+    "path": "C:/User/someone/data/docs"
   },
   "recordSelector": {
     "should": {

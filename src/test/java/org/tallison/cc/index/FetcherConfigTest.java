@@ -6,6 +6,8 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.tika.pipes.emitter.fs.FileSystemEmitter;
+import org.apache.tika.pipes.emitter.s3.S3Emitter;
 import org.apache.tika.pipes.fetcher.s3.S3Fetcher;
 import org.junit.jupiter.api.Test;
 import org.tallison.cc.index.fetcher.FetcherConfig;
@@ -20,6 +22,7 @@ public class FetcherConfigTest {
                 new ObjectMapper().readValue(p.toFile(), FetcherConfig.class);
 
         assertEquals(BackoffHttpFetcher.class, fetcherConfig.newFetcher().getClass());
+        assertEquals(FileSystemEmitter.class, fetcherConfig.newEmitter().getClass());
     }
 
     @Test
@@ -30,6 +33,7 @@ public class FetcherConfigTest {
 
         //TODO -- add actual unit test that tests FSFetcher
         assertEquals(BackoffHttpFetcher.class, fetcherConfig.newFetcher().getClass());
+        assertEquals(FileSystemEmitter.class, fetcherConfig.newEmitter().getClass());
     }
 
     @Test
@@ -38,7 +42,8 @@ public class FetcherConfigTest {
         FetcherConfig fetcherConfig =
                 new ObjectMapper().readValue(p.toFile(), FetcherConfig.class);
 
-        //TODO -- add actual unit test that tests FSFetcher
+        //TODO -- add actual unit test that tests fetcher and emitter
         assertEquals(S3Fetcher.class, fetcherConfig.newFetcher().getClass());
+        assertEquals(S3Emitter.class, fetcherConfig.newEmitter().getClass());
     }
 }

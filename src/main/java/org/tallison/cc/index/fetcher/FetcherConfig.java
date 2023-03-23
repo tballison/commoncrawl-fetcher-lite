@@ -26,9 +26,11 @@ import org.apache.tika.config.Initializable;
 import org.apache.tika.exception.TikaConfigException;
 import org.apache.tika.pipes.emitter.StreamEmitter;
 import org.apache.tika.pipes.emitter.fs.FileSystemEmitter;
+import org.apache.tika.pipes.emitter.s3.S3Emitter;
 import org.apache.tika.pipes.fetcher.Fetcher;
 import org.apache.tika.pipes.fetcher.RangeFetcher;
 import org.apache.tika.pipes.fetcher.s3.S3Fetcher;
+import org.apache.tika.utils.StringUtils;
 import org.tallison.cc.index.IndexIterator;
 import org.tallison.cc.index.io.BackoffHttpFetcher;
 import org.tallison.cc.index.io.TargetPathRewriter;
@@ -42,6 +44,8 @@ public class FetcherConfig {
 
     public static String CC_REGION = "us-east-1";
 
+    public static String DEFAULT_FS_DOCS_PATH = "docs";
+
     public static long[] DEFAULT_THROTTLE_SECONDS = new long[]{30, 120, 600, 1800};
     private int numThreads = 2;
     //maximum records to read
@@ -53,8 +57,6 @@ public class FetcherConfig {
     private long maxFilesTruncated = -1;
 
     private Path indexPathsFile;
-
-    private Path filesDirectory = Paths.get("docs");
 
     private Path truncatedUrlsFile = Paths.get("urls-for-truncated-files.txt");
 
@@ -69,6 +71,9 @@ public class FetcherConfig {
 
     @JsonProperty("fetcher")
     private FetchConfig fetchConfig;
+
+    @JsonProperty("docs")
+    private EmitConfig emitConfig;
 
     public static String getCcHttpsBase() {
         return CC_HTTPS_BASE;
@@ -114,21 +119,6 @@ public class FetcherConfig {
         this.indexPathsFile = indexPathsFile;
     }
 
-    public void setFilesDirectory(Path filesDirectory) {
-        this.filesDirectory = filesDirectory;
-    }
-
-    public StreamEmitter getEmitter() {
-        if (filesDirectory != null) {
-            FileSystemEmitter emitter = new FileSystemEmitter();
-            emitter.setBasePath(filesDirectory.toAbsolutePath().toString());
-            emitter.setOnExists("replace");
-            return emitter;
-        } else {
-            throw new IllegalStateException("must set 'filesDirectory'");
-        }
-
-    }
     public Path getTruncatedUrlsFile() {
         return truncatedUrlsFile;
     }
@@ -173,6 +163,13 @@ public class FetcherConfig {
         return fetchConfig.newFetcher();
     }
 
+    public StreamEmitter newEmitter() throws TikaConfigException {
+        if (emitConfig == null) {
+            emitConfig = new EmitConfig(DEFAULT_FS_DOCS_PATH);
+        }
+        return emitConfig.newEmitter();
+    }
+
     private static class FetchConfig {
         private final String profile;
         private final long[] throttleSeconds;
@@ -199,6 +196,63 @@ public class FetcherConfig {
                 ((Initializable)fetcher).initialize(Collections.EMPTY_MAP);
             }
             return fetcher;
+        }
+    }
+
+    private static class EmitConfig {
+        private String profile;
+        private String region;
+        private String bucket;
+        private String prefix;
+        private String path;
+
+        private EmitConfig(String path) {
+            this.path = path;
+        }
+
+        //TODO -- clean this up with different classes
+        //for the different fetchers and use jackson's inference
+        @JsonCreator
+        public EmitConfig(@JsonProperty("profile") String profile,
+                          @JsonProperty("region") String region,
+                          @JsonProperty("bucket") String bucket,
+                          @JsonProperty("prefix") String prefix,
+                          @JsonProperty("path") String path) {
+            this.profile = profile;
+            this.region = region;
+            this.bucket = bucket;
+            this.prefix = prefix;
+            this.path = path;
+        }
+
+        public StreamEmitter newEmitter() throws TikaConfigException {
+            if (! StringUtils.isBlank(profile)) {
+                S3Emitter emitter = new S3Emitter();
+                emitter.setCredentialsProvider("profile");
+                emitter.setProfile(profile);
+
+                if (StringUtils.isBlank(bucket)) {
+                    throw new TikaConfigException("Must specify a bucket for docs");
+                }
+                emitter.setBucket(bucket);
+                if (region != null) {
+                    emitter.setRegion(region);
+                } else {
+                    emitter.setRegion(FetcherConfig.CC_REGION);
+                }
+                if (! StringUtils.isBlank(prefix)) {
+                    emitter.setPrefix(prefix);
+                }
+                emitter.initialize(Collections.EMPTY_MAP);
+                return emitter;
+            }
+            if (StringUtils.isBlank(path)) {
+                path = DEFAULT_FS_DOCS_PATH;
+            }
+            FileSystemEmitter emitter = new FileSystemEmitter();
+            emitter.setBasePath(path);
+            emitter.setOnExists("skip");
+            return emitter;
         }
     }
 }
