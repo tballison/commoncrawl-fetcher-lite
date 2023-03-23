@@ -57,12 +57,11 @@ import org.apache.tika.utils.StringUtils;
  * This is a lighter class that doesn't rely on a database
  * to extract files from CC and log a list of truncated urls.
  */
-public class CCFileFetcher {
+public class CCFileExtractor {
 
-    private static final String STOP_SEMAPHORE = StringUtils.EMPTY;
     private static final Long INDEX_WORKER_ID = 1l;
     private static final Long INDEX_READER_ID = 2l;
-    private static final Logger LOGGER = LoggerFactory.getLogger(CCFileFetcher.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(CCFileExtractor.class);
 
     public static void main(String[] args) throws Exception {
         FetcherConfig fetcherConfig =
@@ -146,9 +145,9 @@ public class CCFileFetcher {
             boolean shouldContinue = true;
             while (shouldContinue) {
 
-                FetchEmitTuple indexUrl = indexUrls.poll(60, TimeUnit.MINUTES);
+                FetchEmitTuple indexUrl = indexUrls.poll(120, TimeUnit.MINUTES);
                 if (indexUrl == null) {
-                    throw new TimeoutException("waited 60 minutes for a new record");
+                    throw new TimeoutException("waited 120 minutes for a new record");
                 }
 
                 if (indexUrl == PipesIterator.COMPLETED_SEMAPHORE) {
@@ -201,11 +200,13 @@ public class CCFileFetcher {
                     }
                 }
             } catch (TikaException | IOException e) {
-                LOGGER.error("failed while processing " + fetchEmitTuple.getFetchKey().getFetchKey(), e);
+                LOGGER.error(
+                        "failed while processing " + fetchEmitTuple.getFetchKey().getFetchKey(), e);
             }
             long elapsed = System.currentTimeMillis() - start;
             LOGGER.info("finished processing index gz in ({}) ms: {}",
-                    String.format(Locale.US, "%,d", elapsed), fetchEmitTuple.getFetchKey().getFetchKey());
+                    String.format(Locale.US, "%,d", elapsed),
+                    fetchEmitTuple.getFetchKey().getFetchKey());
             return true;
         }
     }

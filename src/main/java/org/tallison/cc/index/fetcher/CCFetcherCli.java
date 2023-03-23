@@ -29,13 +29,13 @@ public class CCFetcherCli {
         String command = args[0];
 
         if (command.equals("Fetch")) {
-            CCFileFetcher.main(new String[]{args[1]});
+            CCFileExtractor.main(new String[]{args[1]});
         } else if (command.equals("FetchIndices")) {
             CCIndexFetcher.main(new String[]{args[1]});
         } else if (command.equals("CountMimes")) {
             CCMimeCounter.main(new String[]{args[1]});
         } else if (Files.isRegularFile(Paths.get(command))) {
-            CCFileFetcher.main(new String[]{args[0]});
+            CCFileExtractor.main(new String[]{args[0]});
         } else {
             System.out.println("Must start with a command: Fetch, FetchIndices or CountMimes");
         }

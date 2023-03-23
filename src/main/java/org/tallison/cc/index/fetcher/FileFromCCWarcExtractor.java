@@ -49,7 +49,7 @@ import org.apache.tika.pipes.emitter.StreamEmitter;
 import org.apache.tika.pipes.fetcher.FetchKey;
 import org.apache.tika.pipes.fetcher.RangeFetcher;
 
-public class FileFromCCWarcFetcher {
+public class FileFromCCWarcExtractor {
     private static Logger LOGGER = LoggerFactory.getLogger(FetchLiteRecordProcessor.class);
     private static Logger EXTRACTED_LOGGER = LoggerFactory.getLogger("extracted-urls");
     private final StreamEmitter emitter;
@@ -57,9 +57,9 @@ public class FileFromCCWarcFetcher {
     private RangeFetcher fetcher;
     private Base32 base32 = new Base32();
 
-    public FileFromCCWarcFetcher(FetcherConfig fetcherConfig) throws TikaConfigException {
+    public FileFromCCWarcExtractor(FetcherConfig fetcherConfig) throws TikaConfigException {
         this.emitter = fetcherConfig.newEmitter();
-        this.fetcher = fetcherConfig.newFetcher();
+        this.fetcher = (RangeFetcher) fetcherConfig.newFetcher();
         this.targetPathRewriter = fetcherConfig.getTargetPathRewriter();
     }
 
@@ -140,11 +140,8 @@ public class FileFromCCWarcFetcher {
                 //new ObjectArray ?
                 //url,mime_detected,warc_file,warc_offset,warc_length,sha256,length,path
                 EXTRACTED_LOGGER.info("", ccIndexRecord.getUrl(),
-                        ccIndexRecord.getNormalizedMimeDetected(),
-                        ccIndexRecord.getFilename(),
-                        ccIndexRecord.getOffset(),
-                        ccIndexRecord.getLength(),
-                        targetDigest, length,
+                        ccIndexRecord.getNormalizedMimeDetected(), ccIndexRecord.getFilename(),
+                        ccIndexRecord.getOffset(), ccIndexRecord.getLength(), targetDigest, length,
                         targetPath);
             } catch (IOException | TikaException e) {
                 LOGGER.warn("problem writing id={}", id, e);

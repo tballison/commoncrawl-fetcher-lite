@@ -41,6 +41,7 @@ public class CCIndexReaderCounter {
 
         return "counts: {" + "recordsRead=" + String.format(Locale.US, "%,d", recordsRead.get()) +
                 ", filesExtracted=" + String.format(Locale.US, "%,d", filesExtracted.get()) +
-                ", truncatedWritten=" + String.format(Locale.US, "%,d", truncatedWritten.get()) + '}';
+                ", truncatedWritten=" + String.format(Locale.US, "%,d", truncatedWritten.get()) +
+                '}';
     }
 }

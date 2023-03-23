@@ -31,7 +31,8 @@ import org.apache.tika.exception.TikaConfigException;
 import org.apache.tika.pipes.emitter.StreamEmitter;
 import org.apache.tika.pipes.emitter.fs.FileSystemEmitter;
 import org.apache.tika.pipes.emitter.s3.S3Emitter;
-import org.apache.tika.pipes.fetcher.RangeFetcher;
+import org.apache.tika.pipes.fetcher.Fetcher;
+import org.apache.tika.pipes.fetcher.fs.FileSystemFetcher;
 import org.apache.tika.pipes.fetcher.s3.S3Fetcher;
 import org.apache.tika.utils.StringUtils;
 
@@ -148,7 +149,7 @@ public class FetcherConfig {
         return indexIterator;
     }
 
-    public RangeFetcher newFetcher() throws TikaConfigException {
+    public Fetcher newFetcher() throws TikaConfigException {
         return fetchConfig.newFetcher();
     }
 
@@ -162,25 +163,31 @@ public class FetcherConfig {
     private static class FetchConfig {
         private final String profile;
         private final long[] throttleSeconds;
+        private final String basePath;
 
         @JsonCreator
         public FetchConfig(@JsonProperty("profile") String profile,
-                           @JsonProperty("throttleSeconds") long[] throttleSeconds) {
+                           @JsonProperty("throttleSeconds") long[] throttleSeconds,
+                           @JsonProperty("basePath") String basePath) {
             this.profile = profile;
             this.throttleSeconds =
                     (throttleSeconds == null) ? DEFAULT_THROTTLE_SECONDS : throttleSeconds;
+            this.basePath = basePath;
         }
 
-        RangeFetcher newFetcher() throws TikaConfigException {
-            RangeFetcher fetcher;
-            if (profile == null) {
-                fetcher = new BackoffHttpFetcher(throttleSeconds);
-            } else {
+        Fetcher newFetcher() throws TikaConfigException {
+            Fetcher fetcher;
+            if (profile != null) {
                 fetcher = new S3Fetcher();
                 ((S3Fetcher) fetcher).setProfile(profile);
                 ((S3Fetcher) fetcher).setCredentialsProvider("profile");
                 ((S3Fetcher) fetcher).setBucket(FetcherConfig.CC_S3_BUCKET);
                 ((S3Fetcher) fetcher).setRegion(FetcherConfig.CC_REGION);
+            } else if (basePath != null) {
+                fetcher = new FileSystemFetcher();
+                ((FileSystemFetcher) fetcher).setBasePath(basePath);
+            } else {
+                fetcher = new BackoffHttpFetcher(throttleSeconds);
             }
             if (fetcher instanceof Initializable) {
                 ((Initializable) fetcher).initialize(Collections.EMPTY_MAP);

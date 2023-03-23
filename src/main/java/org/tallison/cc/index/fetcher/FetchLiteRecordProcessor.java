@@ -38,13 +38,13 @@ public class FetchLiteRecordProcessor extends AbstractRecordProcessor {
     private final FetcherConfig fetcherConfig;
     private final CCIndexReaderCounter counter;
 
-    private final FileFromCCWarcFetcher fileFromCCWarcFetcher;
+    private final FileFromCCWarcExtractor fileFromCCWarcFetcher;
 
     public FetchLiteRecordProcessor(FetcherConfig fetcherConfig, CCIndexReaderCounter counter)
             throws TikaConfigException, IOException {
         this.fetcherConfig = fetcherConfig;
         this.counter = counter;
-        this.fileFromCCWarcFetcher = new FileFromCCWarcFetcher(fetcherConfig);
+        this.fileFromCCWarcFetcher = new FileFromCCWarcExtractor(fetcherConfig);
     }
 
     @Override
@@ -79,13 +79,8 @@ public class FetchLiteRecordProcessor extends AbstractRecordProcessor {
             String url = r.getUrl();
             TRUNCATED_URLS_LOGGER.info("", url);
             //url,mime_detected,warc_file,warc_offset,warc_length,truncated
-            TRUNCATED_URLS_FULL_LOGGER.info("",
-                    url,
-                    r.getNormalizedMimeDetected(),
-                    r.getFilename(),
-                    r.getOffset(),
-                    r.getLength(),
-                    r.getTruncated());
+            TRUNCATED_URLS_FULL_LOGGER.info("", url, r.getNormalizedMimeDetected(), r.getFilename(),
+                    r.getOffset(), r.getLength(), r.getTruncated());
             return true;
         } else {
             long extracted = counter.getFilesExtracted().incrementAndGet();

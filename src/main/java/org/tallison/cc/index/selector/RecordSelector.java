@@ -52,7 +52,9 @@ public class RecordSelector {
                 }
             }
         }
-
+        if (should.size() == 0) {
+            return true;
+        }
         for (Map.Entry<String, List<SelectorClause>> e : should.entrySet()) {
             String val = getStringValue(e.getKey(), record);
             for (SelectorClause clause : e.getValue()) {

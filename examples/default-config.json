@@ -1,21 +1,17 @@
 {
   "dryRun": false,
   "fetcher": {
-    "throttleSeconds": [ 30, 120, 600, 1800]
+    "basePath": "/Users/allison/data/cc/indices"
   },
   "indices" : {
     "paths": [
-      "crawl-data/CC-MAIN-2023-06/cc-index.paths.gz",
-      "crawl-data/CC-MAIN-2022-49/cc-index.paths.gz"
+      "cc-index/collections/CC-MAIN-2023-06/indexes/cdx-00000.gz"
     ]
   },
   "docs": {
-    "path": "docs"
+    "path": "/Users/allison/data/cc/indices"
   },
-  "maxFilesExtracted": 100,
-  "maxFilesTruncated": 100,
-  "maxRecords": 10000000,
-  "numThreads": 3,
+  "numThreads": 10,
   "recordSelector": {
     "must": {
       "status": [
@@ -28,21 +24,6 @@
       "status": [
         {
           "match": "300"
-        }
-      ]
-    },
-    "should": {
-      "mime": [
-        {
-          "pattern": "(?i)quicktime.*",
-          "sample": 0.7
-        }
-      ],
-      "mime_detected": [
-        {
-          "case_sensitive": false,
-          "match": "video/mp4",
-          "sample": 0.8
         }
       ]
     }
