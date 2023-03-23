@@ -233,6 +233,7 @@ public class FetcherConfig {
                 if (!StringUtils.isBlank(prefix)) {
                     emitter.setPrefix(prefix);
                 }
+                emitter.setFileExtension("");
                 emitter.initialize(Collections.EMPTY_MAP);
                 return emitter;
             }
@@ -242,6 +243,7 @@ public class FetcherConfig {
             FileSystemEmitter emitter = new FileSystemEmitter();
             emitter.setBasePath(path);
             emitter.setOnExists("skip");
+            emitter.setFileExtension("");
             return emitter;
         }
     }
