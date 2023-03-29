@@ -69,20 +69,7 @@ public class CCFileExtractorRecordProcessor extends AbstractRecordProcessor {
         if (!fetcherConfig.getRecordSelector().select(r)) {
             return true;
         }
-        if (!StringUtils.isBlank(r.getTruncated())) {
-            long truncated = counter.getTruncatedWritten().incrementAndGet();
-            if (fetcherConfig.getMaxFilesTruncated() > -1 &&
-                    truncated >= fetcherConfig.getMaxFilesTruncated()) {
-                LOGGER.info("hit max truncated files");
-                return false;
-            }
-            String url = r.getUrl();
-            TRUNCATED_URLS_LOGGER.info("", url);
-            //url,mime_detected,warc_file,warc_offset,warc_length,truncated
-            TRUNCATED_URLS_FULL_LOGGER.info("", url, r.getNormalizedMimeDetected(), r.getFilename(),
-                    r.getOffset(), r.getLength(), r.getTruncated());
-            return true;
-        } else {
+        if (fetcherConfig.isExtractTruncated() || StringUtils.isBlank(r.getTruncated())) {
             long extracted = counter.getFilesExtracted().incrementAndGet();
             if (fetcherConfig.getMaxFilesExtracted() > -1 &&
                     extracted >= fetcherConfig.getMaxFilesExtracted()) {
@@ -94,6 +81,19 @@ public class CCFileExtractorRecordProcessor extends AbstractRecordProcessor {
                 return true;
             }
             fetchBytes(r);
+            return true;
+        } else {
+            long truncated = counter.getTruncatedWritten().incrementAndGet();
+            if (fetcherConfig.getMaxFilesTruncated() > -1 &&
+                    truncated >= fetcherConfig.getMaxFilesTruncated()) {
+                LOGGER.info("hit max truncated files");
+                return false;
+            }
+            String url = r.getUrl();
+            TRUNCATED_URLS_LOGGER.info("", url);
+            //url,mime_detected,warc_file,warc_offset,warc_length,truncated
+            TRUNCATED_URLS_FULL_LOGGER.info("", url, r.getNormalizedMimeDetected(), r.getFilename(),
+                    r.getOffset(), r.getLength(), r.getTruncated());
             return true;
         }
     }

@@ -21,6 +21,7 @@
 <Configuration status="WARN">
   <Properties>
     <Property name="extracted.header">url,mime_detected,warc_file,warc_offset,warc_length,sha256,length,path</Property>
+    <Property name="extracted.header">url,mime_detected,warc_file,warc_offset,warc_length,truncated,sha256,length,path</Property>
     <Property name="truncated.short.header">url</Property>
     <Property name="truncated.full.header">url,mime_detected,warc_file,warc_offset,warc_length,truncated</Property>
   </Properties>
@@ -30,6 +31,10 @@
     </Console>
     <File name="extracted-urls" fileName="logs/extracted-urls.csv" append="false" createOnDemand="true">
       <CsvParameterLayout delimiter="," header="${extracted.header}\n"
+                          charset="UTF-8" format="Excel"/>
+    </File>
+    <File name="extracted-urls-all" fileName="logs/extracted-urls-all.csv" append="false" createOnDemand="true">
+      <CsvParameterLayout delimiter="," header="${extracted.all.header}\n"
                           charset="UTF-8" format="Excel"/>
     </File>
     <File name="truncated-urls" fileName="logs/urls-truncated.csv" append="false" createOnDemand="true">
@@ -44,6 +49,10 @@
     <Root level="info" additivity="false">
       <AppenderRef ref="Console"/>
     </Root>
+    <!-- this one is used when extracting truncated and not truncated files -->
+    <logger name="extracted-urls-all" level="INFO" additivity="false">
+      <AppenderRef ref="extracted-urls-all"/>
+    </logger>
     <logger name="extracted-urls" level="INFO" additivity="false">
       <AppenderRef ref="extracted-urls"/>
     </logger>

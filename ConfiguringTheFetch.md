@@ -7,6 +7,7 @@ A full config file would include:
 ```json
 {
   "dryRun": true,
+  "extractTruncated": false,
   "fetcher": {
     "throttleSeconds": [ 30, 120, 600, 1800]
   },
@@ -62,6 +63,13 @@ A full config file would include:
 ## DryRun
 If set to `true`, this processes all the records but does not extract the
 non-truncated files.  This can be useful for counting files.
+
+## ExtractTruncated
+If set to `true`, this will extract the raw bytes from both truncated and non-truncated
+records.  This does **NOT** refetch the files from the original URLS;
+the extracted bytes will contain truncated data. When this is set to
+`true`, the log file will have an extra column for `truncated` and
+be named `logs/extracted-urls-all.csv`. The default is `false`;
 
 ## MaxRecords, MaxFilesExtracted, MaxFilesTruncated
 If these are set to `-1`, or they are not included, the fetcher will

@@ -61,6 +61,8 @@ public class ExtractorConfig {
 
     private boolean dryRun = false;
 
+    private boolean extractTruncated = false;
+
     private RecordSelector recordSelector = RecordSelector.ACCEPT_ALL_RECORDS;
 
     @JsonProperty("indices")
@@ -158,6 +160,13 @@ public class ExtractorConfig {
             emitConfig = new EmitConfig(DEFAULT_FS_DOCS_PATH);
         }
         return emitConfig.newEmitter();
+    }
+
+    public void setExtractTruncated(boolean extractTruncated) {
+        this.extractTruncated = extractTruncated;
+    }
+    public boolean isExtractTruncated() {
+        return extractTruncated;
     }
 
     private static class FetchConfig {
