@@ -179,7 +179,8 @@ Some features that could be added are included below.
 4. Allow extraction of truncated files.
 5. Allow counting of mimes or other features -- not just those selected.
 6. Store fetch status and refetch status in an actual database -- against the design goals of this project. LOL...
-7...
+7. Use parquet files (with or without duckdb and httpfs) instead of the current json-based index files (see this [post](https://avilpage.com/2022/11/common-crawl-laptop-extract-subset.html))
+9. ...
 
 ## Running the Release
 
@@ -192,3 +193,8 @@ The release is currently triggered by pushing a tag starting with 'v'.
 * [CommonCrawlDocumentDownload](https://github.com/centic9/CommonCrawlDocumentDownload) (my initial inspiration)
 * [SimpleCommonCrawlExtractor](https://github.com/tballison/SimpleCommonCrawlExtractor) (my first attempt)
 * [commoncrawl-fetcher module in file-observatory](https://github.com/tballison/file-observatory/tree/main/commoncrawl-fetcher) (second attempt)
+
+## For Advanced Users
+If you're AWS-savvy, you can more simply select the records for extraction via Athena; 
+see this [Common Crawl post](https://commoncrawl.org/2018/03/index-to-warc-files-and-urls-in-columnar-format/)
+on how to run queries against the indices.
