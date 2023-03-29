@@ -52,15 +52,19 @@ import org.apache.tika.pipes.fetcher.RangeFetcher;
 public class FileFromCCWarcExtractor {
     private static Logger LOGGER = LoggerFactory.getLogger(CCFileExtractorRecordProcessor.class);
     private static Logger EXTRACTED_LOGGER = LoggerFactory.getLogger("extracted-urls");
+    private static Logger EXTRACTED_ALL_LOGGER = LoggerFactory.getLogger("extracted-urls-all");
     private final StreamEmitter emitter;
     private final TargetPathRewriter targetPathRewriter;
+
     private RangeFetcher fetcher;
+    private final boolean extractTruncated;
     private Base32 base32 = new Base32();
 
     public FileFromCCWarcExtractor(ExtractorConfig fetcherConfig) throws TikaConfigException {
         this.emitter = fetcherConfig.newEmitter();
         this.fetcher = (RangeFetcher) fetcherConfig.newFetcher();
         this.targetPathRewriter = fetcherConfig.getTargetPathRewriter();
+        this.extractTruncated = fetcherConfig.isExtractTruncated();;
     }
 
     public void fetchToPath(CCIndexRecord record) throws InterruptedException {
@@ -137,12 +141,7 @@ public class FileFromCCWarcExtractor {
             Metadata metadata = new Metadata();
             try (InputStream is = TikaInputStream.get(tmp, metadata)) {
                 emitter.emit(targetPath, is, new Metadata());
-                //new ObjectArray ?
-                //url,mime_detected,warc_file,warc_offset,warc_length,sha256,length,path
-                EXTRACTED_LOGGER.info("", ccIndexRecord.getUrl(),
-                        ccIndexRecord.getNormalizedMimeDetected(), ccIndexRecord.getFilename(),
-                        ccIndexRecord.getOffset(), ccIndexRecord.getLength(), targetDigest, length,
-                        targetPath);
+                logSuccess(ccIndexRecord, targetDigest, length, targetPath);
             } catch (IOException | TikaException e) {
                 LOGGER.warn("problem writing id={}", id, e);
             }
@@ -153,6 +152,30 @@ public class FileFromCCWarcExtractor {
                 LOGGER.warn("can't delete " + tmp.toAbsolutePath(), e);
             }
         }
+    }
+
+    private void logSuccess(CCIndexRecord ccIndexRecord, String targetDigest, long length,
+                            String targetPath) {
+        if (extractTruncated) {
+
+            EXTRACTED_ALL_LOGGER.info("", ccIndexRecord.getUrl(),
+                    ccIndexRecord.getNormalizedMimeDetected(),
+                    ccIndexRecord.getFilename(),
+                    ccIndexRecord.getOffset(), ccIndexRecord.getLength(),
+                    ccIndexRecord.getTruncated(), targetDigest, length,
+                    targetPath);
+        } else {
+            //new ObjectArray ?
+            //url,mime_detected,warc_file,warc_offset,warc_length,sha256,length,path
+            EXTRACTED_LOGGER.info("", ccIndexRecord.getUrl(),
+                    ccIndexRecord.getNormalizedMimeDetected(),
+                    ccIndexRecord.getFilename(),
+                    ccIndexRecord.getOffset(), ccIndexRecord.getLength(),
+                    targetDigest, length,
+                    targetPath);
+        }
+
+
     }
 
     private void parseWarc(String id, CCIndexRecord ccIndexRecord, byte[] warcRecordGZBytes)
