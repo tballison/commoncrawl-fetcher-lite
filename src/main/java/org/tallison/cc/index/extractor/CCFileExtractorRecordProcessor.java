@@ -18,6 +18,7 @@ package org.tallison.cc.index.extractor;
 
 import java.io.IOException;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicLong;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,17 +41,23 @@ public class CCFileExtractorRecordProcessor extends AbstractRecordProcessor {
 
     private final FileFromCCWarcExtractor fileFromCCWarcFetcher;
 
+    private long reportEvery = 100000;
+
     public CCFileExtractorRecordProcessor(ExtractorConfig fetcherConfig, CCIndexReaderCounter counter)
             throws TikaConfigException, IOException {
         this.fetcherConfig = fetcherConfig;
         this.counter = counter;
         this.fileFromCCWarcFetcher = new FileFromCCWarcExtractor(fetcherConfig);
+        //completely arbitrary
+        if (fetcherConfig.getNumThreads() > 10) {
+            reportEvery = 1000000;
+        }
     }
 
     @Override
     public boolean process(String json) throws IOException, InterruptedException {
         long totalRead = counter.getRecordsRead().incrementAndGet();
-        if (totalRead % 1000000 == 0) {
+        if (totalRead % reportEvery == 0) {
             LOGGER.info("processed: {}", counter);
         }
         if (fetcherConfig.getMaxRecords() > -1 && totalRead >= fetcherConfig.getMaxRecords()) {
