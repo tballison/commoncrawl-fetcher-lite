@@ -192,6 +192,9 @@ public class ExtractorConfig {
                 ((S3Fetcher) fetcher).setCredentialsProvider("profile");
                 ((S3Fetcher) fetcher).setBucket(ExtractorConfig.CC_S3_BUCKET);
                 ((S3Fetcher) fetcher).setRegion(ExtractorConfig.CC_REGION);
+                //Update and make configurable once TIKA-3993 is fixed
+                ((S3Fetcher) fetcher).setRetries(3);
+                ((S3Fetcher) fetcher).setSleepBeforeRetryMillis(30000);
             } else if (basePath != null) {
                 fetcher = new FileSystemFetcher();
                 ((FileSystemFetcher) fetcher).setBasePath(basePath);
