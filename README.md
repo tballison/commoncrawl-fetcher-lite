@@ -139,7 +139,7 @@ to a file named `logs/urls-truncated.csv` for later re-fetching.
 There are many options for this.  The simplest might be [wget](https://www.gnu.org/software/wget/):
 `wget -i logs/urls-truncated.csv`
 
-See also options for [curl](https://curl.se/).  
+See also options for [curl](https://curl.se/), such as this [article](https://www.baeldung.com/linux/curl-download-urls-listed-in-file).  
 
 The [Nutch project](https://nutch.apache.org/) may be excessive, but it is
 extremely scaleable and robust (**it powers Common Crawl!**), and it records the WARC information
@@ -160,7 +160,6 @@ provenance information for the URLs nor for the refetches.
 The goal is simply to select files for extraction and to
 extract them or record the URLs for truncated files.
 
-This has been initially designed for users working outside Amazon's environment.
 > **Warning!!!**
 > AWS throttles download rates, especially for HTTP requests. This code is designed with back-off logic for the default HTTP fetcher so that it will pause 
 > if it gets a throttle warning from AWS. While this code is multi-threaded, it is not useful to run more than about 3 threads
