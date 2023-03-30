@@ -157,8 +157,8 @@ public class FileFromCCWarcExtractor {
     private void logSuccess(CCIndexRecord ccIndexRecord, String targetDigest, long length,
                             String targetPath) {
         if (extractTruncated) {
-
             EXTRACTED_ALL_LOGGER.info("", ccIndexRecord.getUrl(),
+                    ccIndexRecord.getNormalizedMime(),
                     ccIndexRecord.getNormalizedMimeDetected(),
                     ccIndexRecord.getFilename(),
                     ccIndexRecord.getOffset(), ccIndexRecord.getLength(),
@@ -168,6 +168,7 @@ public class FileFromCCWarcExtractor {
             //new ObjectArray ?
             //url,mime_detected,warc_file,warc_offset,warc_length,sha256,length,path
             EXTRACTED_LOGGER.info("", ccIndexRecord.getUrl(),
+                    ccIndexRecord.getNormalizedMime(),
                     ccIndexRecord.getNormalizedMimeDetected(),
                     ccIndexRecord.getFilename(),
                     ccIndexRecord.getOffset(), ccIndexRecord.getLength(),

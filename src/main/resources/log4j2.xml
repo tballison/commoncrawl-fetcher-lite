@@ -20,10 +20,10 @@
 -->
 <Configuration status="WARN">
   <Properties>
-    <Property name="extracted.header">url,mime_detected,warc_file,warc_offset,warc_length,sha256,length,path</Property>
-    <Property name="extracted.header">url,mime_detected,warc_file,warc_offset,warc_length,truncated,sha256,length,path</Property>
+    <Property name="extracted.header">url,mime,mime_detected,warc_file,warc_offset,warc_length,sha256,length,path</Property>
+    <Property name="extracted.header">url,mime,mime_detected,warc_file,warc_offset,warc_length,truncated,sha256,length,path</Property>
     <Property name="truncated.short.header">url</Property>
-    <Property name="truncated.full.header">url,mime_detected,warc_file,warc_offset,warc_length,truncated</Property>
+    <Property name="truncated.full.header">url,mime,mime_detected,warc_file,warc_offset,warc_length,truncated</Property>
   </Properties>
   <Appenders>
     <Console name="Console" target="SYSTEM_ERR">
