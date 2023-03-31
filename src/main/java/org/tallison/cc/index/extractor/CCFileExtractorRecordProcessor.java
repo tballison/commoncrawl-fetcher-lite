@@ -46,7 +46,7 @@ public class CCFileExtractorRecordProcessor extends AbstractRecordProcessor {
             throws TikaConfigException, IOException {
         this.fetcherConfig = fetcherConfig;
         this.counter = counter;
-        this.fileFromCCWarcFetcher = new FileFromCCWarcExtractor(fetcherConfig);
+        this.fileFromCCWarcFetcher = new FileFromCCWarcExtractor(fetcherConfig, counter);
         //completely arbitrary
         if (fetcherConfig.getNumThreads() > 10) {
             reportEvery = 1000000;
@@ -77,7 +77,7 @@ public class CCFileExtractorRecordProcessor extends AbstractRecordProcessor {
         }
         //if truncated, count appropriately and test for limits
         if (!StringUtils.isBlank(r.getTruncated())) {
-            long truncated = counter.getTruncatedWritten().incrementAndGet();
+            long truncated = counter.getTruncated().incrementAndGet();
             if (fetcherConfig.getMaxFilesTruncated() > -1 &&
                     truncated >= fetcherConfig.getMaxFilesTruncated()) {
                 LOGGER.info("hit max truncated files");

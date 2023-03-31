@@ -312,7 +312,7 @@ public class CCMimeCounter {
             }
             increment(totalCounts, r.getNormalizedMimeDetected());
             if (!StringUtils.isBlank(r.getTruncated())) {
-                long truncated = counter.getTruncatedWritten().incrementAndGet();
+                long truncated = counter.getTruncated().incrementAndGet();
                 if (fetcherConfig.getMaxFilesTruncated() > -1 &&
                         truncated >= fetcherConfig.getMaxFilesTruncated()) {
                     LOGGER.info("hit max truncated files");

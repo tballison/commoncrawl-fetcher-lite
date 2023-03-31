@@ -36,6 +36,7 @@ import org.netpreserve.jwarc.WarcRecord;
 import org.netpreserve.jwarc.WarcResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.tallison.cc.index.CCIndexReaderCounter;
 import org.tallison.cc.index.CCIndexRecord;
 import org.tallison.cc.index.io.TargetPathRewriter;
 
@@ -50,7 +51,8 @@ import org.apache.tika.pipes.fetcher.FetchKey;
 import org.apache.tika.pipes.fetcher.RangeFetcher;
 
 public class FileFromCCWarcExtractor {
-    private static Logger LOGGER = LoggerFactory.getLogger(CCFileExtractorRecordProcessor.class);
+    private static Logger LOGGER =
+            LoggerFactory.getLogger(FileFromCCWarcExtractor.class);
     private static Logger EXTRACTED_LOGGER = LoggerFactory.getLogger("extracted-urls");
     private static Logger EXTRACTED_ALL_LOGGER = LoggerFactory.getLogger("extracted-urls-all");
     private final StreamEmitter emitter;
@@ -60,11 +62,14 @@ public class FileFromCCWarcExtractor {
     private final boolean extractTruncated;
     private Base32 base32 = new Base32();
 
-    public FileFromCCWarcExtractor(ExtractorConfig fetcherConfig) throws TikaConfigException {
+    private final CCIndexReaderCounter ccIndexReaderCounter;
+    public FileFromCCWarcExtractor(ExtractorConfig fetcherConfig,
+                                   CCIndexReaderCounter ccIndexReaderCounter) throws TikaConfigException {
         this.emitter = fetcherConfig.newEmitter();
         this.fetcher = (RangeFetcher) fetcherConfig.newFetcher();
         this.targetPathRewriter = fetcherConfig.getTargetPathRewriter();
-        this.extractTruncated = fetcherConfig.isExtractTruncated();;
+        this.extractTruncated = fetcherConfig.isExtractTruncated();
+        this.ccIndexReaderCounter = ccIndexReaderCounter;
     }
 
     public void fetchToPath(CCIndexRecord record) throws InterruptedException {
@@ -100,10 +105,12 @@ public class FileFromCCWarcExtractor {
         Optional<WarcPayload> payload = ((WarcResponse) record).payload();
         if (!payload.isPresent()) {
             LOGGER.debug("no payload {}", id);
+            ccIndexReaderCounter.getEmptyPayload().incrementAndGet();
             return;
         }
         if (payload.get().body().size() == 0) {
             LOGGER.debug("empty payload id={}", id);
+            ccIndexReaderCounter.getEmptyPayload().incrementAndGet();
             return;
         }
 

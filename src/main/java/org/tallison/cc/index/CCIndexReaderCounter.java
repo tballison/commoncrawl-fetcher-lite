@@ -16,13 +16,13 @@
  */
 package org.tallison.cc.index;
 
-import java.util.Locale;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class CCIndexReaderCounter {
     AtomicLong recordsRead = new AtomicLong(0);
     AtomicLong filesExtracted = new AtomicLong(0);
-    AtomicLong truncatedWritten = new AtomicLong(0);
+    AtomicLong truncated = new AtomicLong(0);
+    AtomicLong emptyPayload = new AtomicLong(0);
 
     public AtomicLong getRecordsRead() {
         return recordsRead;
@@ -32,16 +32,18 @@ public class CCIndexReaderCounter {
         return filesExtracted;
     }
 
-    public AtomicLong getTruncatedWritten() {
-        return truncatedWritten;
+    public AtomicLong getTruncated() {
+        return truncated;
+    }
+
+    public AtomicLong getEmptyPayload() {
+        return emptyPayload;
     }
 
     @Override
     public String toString() {
-
-        return "counts: {" + "recordsRead=" + String.format(Locale.US, "%,d", recordsRead.get()) +
-                ", filesExtracted=" + String.format(Locale.US, "%,d", filesExtracted.get()) +
-                ", truncatedWritten=" + String.format(Locale.US, "%,d", truncatedWritten.get()) +
+        return "CCIndexReaderCounter{" + "recordsRead=" + recordsRead + ", filesExtracted=" +
+                filesExtracted + ", truncated=" + truncated + ", emptyPayload=" + emptyPayload +
                 '}';
     }
 }
