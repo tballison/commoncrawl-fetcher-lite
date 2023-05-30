@@ -152,6 +152,9 @@ public class ExtractorConfig {
     }
 
     public Fetcher newFetcher() throws TikaConfigException {
+        if (fetchConfig == null) {
+            fetchConfig = new FetchConfig(null, DEFAULT_THROTTLE_SECONDS, null);
+        }
         return fetchConfig.newFetcher();
     }
 
