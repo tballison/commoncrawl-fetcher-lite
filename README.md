@@ -192,6 +192,8 @@ The release is currently triggered by pushing a tag starting with 'v'.
 
 ```git tag -a "v1.0.0-alpha1" -m "v1.0.0-alpha1-release" && git push origin v1.0.0-alpha1```
 
+Then navigate to Github and actually make the release.
+
 ## Related projects
 
 * [CommonCrawlDocumentDownload](https://github.com/centic9/CommonCrawlDocumentDownload) (my initial inspiration)
