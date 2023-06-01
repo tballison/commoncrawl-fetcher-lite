@@ -74,6 +74,10 @@ The JSON object above:
 If you'd prefer to use S3 instead of HTTPS, see [ConfiguringTheFetch](ConfiguringTheFetch.md).
 
 ## Steps to run the fetcher
+> **Warning!!!**
+For each month's crawl, this process downloads ~300GB of index data via HTTPS or S3. If you are running locally
+> and you'd prefer to download the index data only once, see [AdvancedScenarios](AdvancedScenarios).
+
 ### 1. Specify What is Wanted
 At a minimum, the user defines a few parameters in a JSON file ([minimal-config](examples/minimal-config.json), for example).
 
@@ -120,8 +124,6 @@ There are many configuration options -- see [ConfiguringTheFetch](ConfiguringThe
     }
 }
 ```
-> **Warning!!!**
-For each month's crawl, this process needs to download ~300GB of index data via HTTPS or S3.
 
 ### 2. Run the Code
 Users must have Java (>= 11) installed.  To check your version: `java -version`.
