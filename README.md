@@ -120,7 +120,8 @@ There are many configuration options -- see [ConfiguringTheFetch](ConfiguringThe
     }
 }
 ```
-**NOTE: For each month's crawl, this process needs to download ~300GB of index data via HTTPS or S3.**
+> **Warning!!!**
+For each month's crawl, this process needs to download ~300GB of index data via HTTPS or S3.
 
 ### 2. Run the Code
 Users must have Java (>= 11) installed.  To check your version: `java -version`.
@@ -144,6 +145,8 @@ See also options for [curl](https://curl.se/), such as this [article](https://ww
 The [Nutch project](https://nutch.apache.org/) may be excessive, but it is
 extremely scaleable and robust (**it powers Common Crawl!**), and it records the WARC information
 for each fetch.
+
+For other scenarios, see [AdvancedScenarios](AdvancedScenarios.md).
 
 ## How to Build
 For those who want to build the latest, you'll need Java jdk >= 11,
