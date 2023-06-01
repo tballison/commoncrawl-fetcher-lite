@@ -26,7 +26,7 @@
         <httpcore.version>4.4.16</httpcore.version>
         <httpclient.version>4.5.14</httpclient.version>
         <httpcomponents.version>4.4.14</httpcomponents.version>
-        <jackson.version>2.15.0</jackson.version>
+        <jackson.version>2.15.2</jackson.version>
         <jupiter.version>5.9.3</jupiter.version>
         <tika.version>2.7.0</tika.version>
         <maven.shade.version>3.4.1</maven.shade.version>
@@ -131,7 +131,7 @@
         <dependency>
             <groupId>org.netpreserve</groupId>
             <artifactId>jwarc</artifactId>
-            <version>0.21.0</version>
+            <version>0.22.0</version>
         </dependency>
         <!-- logging -->
         <dependency>
@@ -201,7 +201,7 @@
                     <dependency>
                         <groupId>com.puppycrawl.tools</groupId>
                         <artifactId>checkstyle</artifactId>
-                        <version>10.9.3</version>
+                        <version>10.12.0</version>
                     </dependency>
 
                 </dependencies>
