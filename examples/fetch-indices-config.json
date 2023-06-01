@@ -1,0 +1,11 @@
+{
+  "indices": {
+    "paths": [
+      "crawl-data/CC-MAIN-2023-06/cc-index.paths.gz"
+    ]
+  },
+  "docs": {
+    "path": "my-indices"
+  },
+  "numThreads": 2
+}

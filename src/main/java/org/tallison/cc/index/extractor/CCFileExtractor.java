@@ -131,13 +131,13 @@ public class CCFileExtractor {
         private final ArrayBlockingQueue<FetchEmitTuple> indexUrls;
         private final AbstractRecordProcessor recordProcessor;
 
-        private final Fetcher fetcher;
+        private final Fetcher indexFetcher;
 
         IndexWorker(ExtractorConfig fetcherConfig, ArrayBlockingQueue<FetchEmitTuple> indexUrls,
                     AbstractRecordProcessor recordProcessor) throws TikaException {
             this.indexUrls = indexUrls;
             this.recordProcessor = recordProcessor;
-            this.fetcher = fetcherConfig.newFetcher();
+            this.indexFetcher = fetcherConfig.newIndexFetcher();
         }
 
         @Override
@@ -168,7 +168,7 @@ public class CCFileExtractor {
             long start = System.currentTimeMillis();
             LOGGER.info("starting to fetch index gz: {}",
                     fetchEmitTuple.getFetchKey().getFetchKey());
-            try (TikaInputStream tis = (TikaInputStream) fetcher.fetch(
+            try (TikaInputStream tis = (TikaInputStream) indexFetcher.fetch(
                     fetchEmitTuple.getFetchKey().getFetchKey(), new Metadata())) {
                 try (InputStream is = new BufferedInputStream(new GZIPInputStream(tis))) {
                     try (BufferedReader reader = new BufferedReader(

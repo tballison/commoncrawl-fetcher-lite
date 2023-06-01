@@ -120,7 +120,7 @@ There are many configuration options -- see [ConfiguringTheFetch](ConfiguringThe
     }
 }
 ```
-**NOTE:** For each month's crawl, this process needs to download ~300GB of index data via HTTPS or S3.
+**NOTE: For each month's crawl, this process needs to download ~300GB of index data via HTTPS or S3.**
 
 ### 2. Run the Code
 Users must have Java (>= 11) installed.  To check your version: `java -version`.

@@ -71,6 +71,9 @@ public class ExtractorConfig {
     @JsonProperty("fetcher")
     private FetchConfig fetchConfig;
 
+    @JsonProperty("indexFetcher")
+    private FetchConfig indexFetchConfig;
+
     @JsonProperty("docs")
     private EmitConfig emitConfig;
 
@@ -158,6 +161,13 @@ public class ExtractorConfig {
         return fetchConfig.newFetcher();
     }
 
+    public Fetcher newIndexFetcher() throws TikaConfigException {
+        if (indexFetchConfig == null) {
+            indexFetchConfig = new FetchConfig(null, DEFAULT_THROTTLE_SECONDS, null);
+        }
+        return indexFetchConfig.newFetcher();
+    }
+
     public StreamEmitter newEmitter() throws TikaConfigException {
         if (emitConfig == null) {
             emitConfig = new EmitConfig(DEFAULT_FS_DOCS_PATH);
@@ -168,6 +178,7 @@ public class ExtractorConfig {
     public void setExtractTruncated(boolean extractTruncated) {
         this.extractTruncated = extractTruncated;
     }
+
     public boolean isExtractTruncated() {
         return extractTruncated;
     }

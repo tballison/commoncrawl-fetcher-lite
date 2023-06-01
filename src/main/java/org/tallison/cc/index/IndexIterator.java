@@ -21,6 +21,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -73,7 +75,9 @@ public class IndexIterator extends PipesIterator implements Initializable {
         } else {
             //do nothing
         }
-        initPaths.addAll(indexPaths);
+        if (indexPaths != null) {
+            initPaths.addAll(indexPaths);
+        }
     }
 
     private static void addIndexPaths(Fetcher fetcher, String path, List<String> indexPaths)
@@ -124,6 +128,13 @@ public class IndexIterator extends PipesIterator implements Initializable {
             ((Initializable) fetcher).initialize(params);
         }
         Matcher m = Pattern.compile("indexes/cdx-\\d{5,5}.gz\\Z").matcher("");
+        if (initPaths.size() == 0) {
+            try {
+                loadLocalFiles(fetcher);
+            } catch (IOException e) {
+                throw new TikaConfigException("Problem reading from local directory");
+            }
+        }
         for (String p : initPaths) {
             if (p.endsWith("cc-index.paths.gz")) {
                 try {
@@ -140,5 +151,14 @@ public class IndexIterator extends PipesIterator implements Initializable {
             }
         }
 
+    }
+
+    private void loadLocalFiles(Fetcher fetcher) throws IOException {
+        if (fetcher instanceof FileSystemFetcher) {
+            Path basePath = ((FileSystemFetcher)fetcher).getBasePath();
+            Files.walk(basePath).filter(p -> Files.isRegularFile(p)).forEach(
+                    p -> initPaths.add(basePath.relativize(p).toString())
+            );
+        }
     }
 }

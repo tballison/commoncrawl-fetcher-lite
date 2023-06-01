@@ -1,0 +1,33 @@
+{
+  "numThreads": 2,
+  "maxRecords": 100000000,
+  "maxFilesExtracted": 100,
+  "maxFilesTruncated": 1000,
+  "indices": {
+    "basePath": "my-indices"
+  },
+  "indexFetcher" : {
+    "basePath": "my-indices"
+  },
+  "docs": {
+    "path": "octets"
+  },
+  "recordSelector": {
+    "should": {
+      "mime_detected": [
+        {
+          "match": "application/octet-stream",
+          "sample": 0.8
+        }
+      ]
+    },
+    "must": {
+      "status": [
+        {
+          "match": "200"
+        }
+      ]
+    }
+  },
+  "targetPathPattern": "xx/xx/xxx"
+}
