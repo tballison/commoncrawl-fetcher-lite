@@ -55,6 +55,7 @@ public class CCFileExtractorRecordProcessor extends AbstractRecordProcessor {
 
     @Override
     public boolean process(String json) throws IOException, InterruptedException {
+        //System.out.println("JSON: " + json);
         long totalRead = counter.getRecordsRead().incrementAndGet();
         if (totalRead % reportEvery == 0) {
             LOGGER.info("processed: {}", counter);

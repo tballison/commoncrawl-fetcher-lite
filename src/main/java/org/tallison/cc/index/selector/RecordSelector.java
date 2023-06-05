@@ -21,9 +21,13 @@ import java.util.List;
 import java.util.Map;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.tallison.cc.index.CCIndexRecord;
 
 public class RecordSelector {
+
+    private static Logger LOGGER = LoggerFactory.getLogger(RecordSelector.class);
 
     public static RecordSelector ACCEPT_ALL_RECORDS = new AcceptAllRecords();
     @JsonProperty
@@ -37,6 +41,10 @@ public class RecordSelector {
 
         for (Map.Entry<String, List<SelectorClause>> e : must_not.entrySet()) {
             String val = getStringValue(e.getKey(), record);
+            if (val == null) {
+                LOGGER.warn("Value is null for '{}' in the must not clause", e.getKey());
+                continue;
+            }
             for (SelectorClause clause : e.getValue()) {
                 if (clause.select(val)) {
                     return false;
@@ -46,6 +54,11 @@ public class RecordSelector {
 
         for (Map.Entry<String, List<SelectorClause>> e : must.entrySet()) {
             String val = getStringValue(e.getKey(), record);
+            if (val == null) {
+                LOGGER.warn("Value is null for '{}' in the must clause. Record not selected.",
+                        e.getKey());
+                return false;
+            }
             for (SelectorClause clause : e.getValue()) {
                 if (!clause.select(val)) {
                     return false;
@@ -57,6 +70,11 @@ public class RecordSelector {
         }
         for (Map.Entry<String, List<SelectorClause>> e : should.entrySet()) {
             String val = getStringValue(e.getKey(), record);
+            if (val == null) {
+                LOGGER.warn("Value is null for '{}' in the should clause. Record not selected",
+                        e.getKey());
+                continue;
+            }
             for (SelectorClause clause : e.getValue()) {
                 if (clause.select(val)) {
                     return true;

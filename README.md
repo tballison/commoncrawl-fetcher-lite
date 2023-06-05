@@ -171,6 +171,14 @@ extract them or record the URLs for truncated files.
 > when fetching from HTTP.  When running this code on AWS instances
 > pulling from S3, I've run 50 threads without receiving throttling complaints.
 
+## Changes in Common Crawl Indices Over Time
+Over time, Common Crawl has added new fields.  If you're pulling from old crawls,
+the fields that you need may not exist in the older index files.  For example, `mime-detected`,
+was added in the `CC-MAIN-2017-22` crawl. If a value is `null` for a requested field,
+there will be logging that warns about a null value for a given field.  If the field
+is in a `must_not` clause, that clause will not be considered; if the field is in a `must` or `should`
+clause, that record will not be selected.
+
 ## Roadmap
 
 Please open bug reports and issues to help prioritize future development.
