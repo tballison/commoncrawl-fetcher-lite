@@ -59,10 +59,13 @@ public class IndexIterator extends PipesIterator implements Initializable {
 
     private Fetcher fetcher = null;
 
+    int maxIndexFiles = -1;
+
     @JsonCreator
     public IndexIterator(@JsonProperty("profile") String profile,
                          @JsonProperty("basePath") String basePath,
-                         @JsonProperty("paths") List<String> indexPaths) {
+                         @JsonProperty("paths") List<String> indexPaths,
+                         @JsonProperty("maxIndexFiles") Integer maxIndexFiles) {
         if (profile != null) {
             fetcher = new S3Fetcher();
             ((S3Fetcher) fetcher).setProfile(profile);
@@ -77,6 +80,10 @@ public class IndexIterator extends PipesIterator implements Initializable {
         }
         if (indexPaths != null) {
             initPaths.addAll(indexPaths);
+        }
+
+        if (maxIndexFiles != null) {
+            this.maxIndexFiles = maxIndexFiles;
         }
     }
 
@@ -110,9 +117,13 @@ public class IndexIterator extends PipesIterator implements Initializable {
 
     @Override
     protected void enqueue() throws IOException, TimeoutException, InterruptedException {
+        int added = 0;
         for (String p : indexPaths) {
             FetchEmitTuple t = new FetchEmitTuple(p, new FetchKey("", p), new EmitKey());
             tryToAdd(t);
+            if (maxIndexFiles > -1 && ++added >= maxIndexFiles) {
+                break;
+            }
         }
         tryToAdd(PipesIterator.COMPLETED_SEMAPHORE);
     }
