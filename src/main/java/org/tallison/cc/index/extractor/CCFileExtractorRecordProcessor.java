@@ -17,6 +17,7 @@
 package org.tallison.cc.index.extractor;
 
 import java.io.IOException;
+import java.util.Locale;
 import java.util.Optional;
 
 import org.slf4j.Logger;
@@ -58,7 +59,7 @@ public class CCFileExtractorRecordProcessor extends AbstractRecordProcessor {
         //System.out.println("JSON: " + json);
         long totalRead = counter.getRecordsRead().incrementAndGet();
         if (totalRead % reportEvery == 0) {
-            LOGGER.info("processed: {}", String.format("%,d", totalRead));
+            LOGGER.info("processed: {}", String.format(Locale.US,"%,d", totalRead));
         }
         if (fetcherConfig.getMaxRecords() > -1 && totalRead >= fetcherConfig.getMaxRecords()) {
             LOGGER.info("hit max read");
