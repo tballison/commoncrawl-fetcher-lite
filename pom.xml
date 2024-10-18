@@ -19,16 +19,16 @@
         <project.build.resourceEncoding>UTF-8</project.build.resourceEncoding>
         <file.encoding>UTF-8</file.encoding>
         <maven.compile.encoding>UTF-8</maven.compile.encoding>
-        <maven.compiler.source>11</maven.compiler.source>
-        <maven.compiler.target>11</maven.compiler.target>
+        <maven.compiler.source>17</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>${project.build.sourceEncoding}</project.reporting.outputEncoding>
         <httpcore.version>4.4.16</httpcore.version>
         <httpclient.version>4.5.14</httpclient.version>
         <httpcomponents.version>4.4.14</httpcomponents.version>
-        <jackson.version>2.15.2</jackson.version>
-        <jupiter.version>5.9.3</jupiter.version>
-        <tika.version>2.7.0</tika.version>
+        <jackson.version>2.18.0</jackson.version>
+        <jupiter.version>5.11.2</jupiter.version>
+        <tika.version>2.9.2</tika.version>
         <maven.shade.version>3.4.1</maven.shade.version>
     </properties>
     <dependencyManagement>
@@ -71,7 +71,7 @@
             <dependency>
                 <groupId>commons-codec</groupId>
                 <artifactId>commons-codec</artifactId>
-                <version>1.15</version>
+                <version>1.17.1</version>
             </dependency>
             <dependency>
                 <groupId>org.apache.commons</groupId>
@@ -81,7 +81,12 @@
             <dependency>
                 <groupId>commons-io</groupId>
                 <artifactId>commons-io</artifactId>
-                <version>2.11.0</version>
+                <version>2.17.0</version>
+            </dependency>
+            <dependency>
+                <groupId>org.slf4j</groupId>
+                <artifactId>slf4j-api</artifactId>
+                <version>2.0.16</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
@@ -118,7 +123,7 @@
         <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-lang3</artifactId>
-            <version>3.12.0</version>
+            <version>3.17.0</version>
         </dependency>
         <dependency>
             <groupId>commons-codec</groupId>
@@ -131,7 +136,7 @@
         <dependency>
             <groupId>org.netpreserve</groupId>
             <artifactId>jwarc</artifactId>
-            <version>0.23.1</version>
+            <version>0.30.0</version>
         </dependency>
         <!-- logging -->
         <dependency>
@@ -147,7 +152,7 @@
         <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-csv</artifactId>
-            <version>1.10.0</version>
+            <version>1.12.0</version>
         </dependency>
         <!-- test -->
         <dependency>
@@ -201,7 +206,7 @@
                     <dependency>
                         <groupId>com.puppycrawl.tools</groupId>
                         <artifactId>checkstyle</artifactId>
-                        <version>10.12.1</version>
+                        <version>10.18.2</version>
                     </dependency>
 
                 </dependencies>

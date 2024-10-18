@@ -74,10 +74,10 @@ public class CCMimeCounter {
     private static final Long INDEX_WORKER_ID = 1l;
     private static final Long INDEX_READER_ID = 2l;
     private static final Logger LOGGER = LoggerFactory.getLogger(CCMimeCounter.class);
+    private static final int BATCH_SIZE = 100000;
 
     public static void main(String[] args) throws Exception {
-        ExtractorConfig fetcherConfig =
-                new ObjectMapper().readValue(new File(args[0]), ExtractorConfig.class);
+        ExtractorConfig fetcherConfig = new ObjectMapper().readValue(new File(args[0]), ExtractorConfig.class);
         execute(fetcherConfig);
     }
 
@@ -93,8 +93,7 @@ public class CCMimeCounter {
         int totalThreads = fetcherConfig.getNumThreads() + 1;
 
         ExecutorService executorService = Executors.newFixedThreadPool(totalThreads);
-        ExecutorCompletionService<Long> executorCompletionService =
-                new ExecutorCompletionService<>(executorService);
+        ExecutorCompletionService<Long> executorCompletionService = new ExecutorCompletionService<>(executorService);
 
         IndexIterator indexIterator = fetcherConfig.getIndexIterator();
         indexIterator.initialize(Collections.EMPTY_MAP);
@@ -106,12 +105,11 @@ public class CCMimeCounter {
             for (int i = 0; i < fetcherConfig.getNumThreads(); i++) {
                 DetectedMimeCounter processor = new DetectedMimeCounter(fetcherConfig, counter);
                 detectedMimeCounters.add(processor);
-                executorCompletionService.submit(
-                        new IndexWorker(fetcherConfig, indexPathsList, processor));
+                executorCompletionService.submit(new IndexWorker(fetcherConfig, indexPathsList, processor));
             }
 
 
-            while (finishedWorkers < totalThreads) {
+            while (finishedWorkers < fetcherConfig.getNumThreads()) {
                 //blocking
                 Future<Long> future = executorCompletionService.take();
                 if (future != null) {
@@ -141,8 +139,7 @@ public class CCMimeCounter {
         summarize(detectedMimeCounters);
     }
 
-    private static void summarize(List<DetectedMimeCounter> detectedMimeCounters)
-            throws IOException {
+    private static void summarize(List<DetectedMimeCounter> detectedMimeCounters) throws IOException {
         Map<String, Long> total = new HashMap<>();
         Map<String, Long> truncated = new HashMap<>();
         Map<String, Long> nonTruncated = new HashMap<>();
@@ -156,8 +153,8 @@ public class CCMimeCounter {
         report("non-truncated", nonTruncated);
     }
 
-    private static void calcNonTruncated(Map<String, Long> truncated, Map<String, Long> total,
-                                         Map<String, Long> nonTruncated) {
+    private static void calcNonTruncated(Map<String, Long> truncated,
+                                         Map<String, Long> total, Map<String, Long> nonTruncated) {
         for (Map.Entry<String, Long> e : total.entrySet()) {
             Long val = e.getValue();
             Long t = truncated.getOrDefault(e.getKey(), 0l);
@@ -167,11 +164,14 @@ public class CCMimeCounter {
     }
 
     private static void report(String name, Map<String, Long> m) throws IOException {
-        try (BufferedWriter writer = Files.newBufferedWriter(Paths.get(name + ".csv"),
-                StandardCharsets.UTF_8)) {
+        try (BufferedWriter writer = Files.newBufferedWriter(
+                Paths.get(name + ".csv"), StandardCharsets.UTF_8)) {
             try (CSVPrinter printer = new CSVPrinter(writer, CSVFormat.EXCEL)) {
                 printer.printRecord("mime", "count");
-                m.entrySet().stream().sorted(Collections.reverseOrder(Map.Entry.comparingByValue()))
+                m
+                        .entrySet()
+                        .stream()
+                        .sorted(Collections.reverseOrder(Map.Entry.comparingByValue()))
                         .forEach(e -> {
                             try {
                                 printer.printRecord(e.getKey(), e.getValue());
@@ -189,7 +189,9 @@ public class CCMimeCounter {
             if (cnt == null) {
                 cnt = 0l;
             }
-            cnt += e.getValue().getValue();
+            cnt += e
+                    .getValue()
+                    .getValue();
             to.put(e.getKey(), cnt);
         }
     }
@@ -230,50 +232,72 @@ public class CCMimeCounter {
         }
 
         private boolean processFile(FetchEmitTuple fetchEmitTuple,
-                                    AbstractRecordProcessor recordProcessor)
-                throws InterruptedException {
+                                    AbstractRecordProcessor recordProcessor) throws InterruptedException {
             long start = System.currentTimeMillis();
-            LOGGER.info("starting to fetch index gz: {}",
-                    fetchEmitTuple.getFetchKey().getFetchKey());
-            try (TikaInputStream tis = (TikaInputStream) fetcher.fetch(
-                    fetchEmitTuple.getFetchKey().getFetchKey(), new Metadata())) {
+            LOGGER.info("starting to fetch index gz path={} with fetcher class={}", fetchEmitTuple
+                    .getFetchKey()
+                    .getFetchKey(), fetcher.getClass());
+            try (TikaInputStream tis = (TikaInputStream) fetcher.fetch(fetchEmitTuple
+                    .getFetchKey()
+                    .getFetchKey(), new Metadata())) {
                 try (InputStream is = new BufferedInputStream(new GZIPInputStream(tis))) {
                     try (BufferedReader reader = new BufferedReader(
                             new InputStreamReader(is, StandardCharsets.UTF_8))) {
-                        String line = reader.readLine();
-                        int lines = 0;
+                        int lineCount = 0;
                         long elapsed = System.currentTimeMillis() - start;
                         LOGGER.info("Finished fetching {} bytes in {} ms for index gz: {}",
                                 String.format(Locale.US, "%,d", tis.getLength()),
-                                String.format(Locale.US, "%,d", elapsed),
-                                fetchEmitTuple.getFetchKey().getFetchKey());
+                                String.format(Locale.US, "%,d", elapsed), fetchEmitTuple
+                                        .getFetchKey()
+                                        .getFetchKey());
+                        List<String> lines = new ArrayList<>();
+                        String line = reader.readLine();
                         while (line != null) {
-                            LOGGER.trace("about to add a line");
                             if (StringUtils.isBlank(line)) {
                                 line = reader.readLine();
                                 continue;
                             }
-                            try {
-                                boolean shouldContinue = recordProcessor.process(line);
+                            lines.add(line);
+                            if (lines.size() >= BATCH_SIZE) {
+                                boolean shouldContinue = processLines(lines, recordProcessor);
                                 if (!shouldContinue) {
                                     return shouldContinue;
                                 }
-                            } catch (IOException e) {
-                                LOGGER.warn("bad json: " + line);
+                                lines.clear();
                             }
-                            lines++;
                             line = reader.readLine();
+                        }
+                        boolean shouldContinue = processLines(lines, recordProcessor);
+                        if (!shouldContinue) {
+                            return shouldContinue;
                         }
                     }
                 }
             } catch (TikaException | IOException e) {
-                LOGGER.error(
-                        "failed while processing " + fetchEmitTuple.getFetchKey().getFetchKey(), e);
+                LOGGER.error("failed while processing " + fetchEmitTuple
+                        .getFetchKey()
+                        .getFetchKey(), e);
             }
             long elapsed = System.currentTimeMillis() - start;
             LOGGER.info("finished processing index gz in ({}) ms: {}",
-                    String.format(Locale.US, "%,d", elapsed),
-                    fetchEmitTuple.getFetchKey().getFetchKey());
+                    String.format(Locale.US, "%,d", elapsed), fetchEmitTuple
+                    .getFetchKey()
+                    .getFetchKey());
+            return true;
+        }
+
+        private boolean processLines(List<String> lines,
+                                     AbstractRecordProcessor recordProcessor) throws InterruptedException {
+            for (String line : lines) {
+                try {
+                    boolean shouldContinue = recordProcessor.process(line);
+                    if (!shouldContinue) {
+                        return shouldContinue;
+                    }
+                } catch (IOException e) {
+                    LOGGER.warn("bad json: " + line);
+                }
+            }
             return true;
         }
     }
@@ -283,6 +307,7 @@ public class CCMimeCounter {
         private final CCIndexReaderCounter counter;
         private final Map<String, MutableLong> totalCounts = new HashMap<>();
         private final Map<String, MutableLong> truncatedCounts = new HashMap<>();
+
         public DetectedMimeCounter(ExtractorConfig fetcherConfig, CCIndexReaderCounter counter) {
             this.fetcherConfig = fetcherConfig;
             this.counter = counter;
@@ -290,7 +315,9 @@ public class CCMimeCounter {
 
         @Override
         public boolean process(String json) throws IOException, InterruptedException {
-            long totalRead = counter.getRecordsRead().incrementAndGet();
+            long totalRead = counter
+                    .getRecordsRead()
+                    .incrementAndGet();
             if (totalRead % 1000000 == 0) {
                 LOGGER.info("processed: {}", counter);
             }
@@ -307,12 +334,16 @@ public class CCMimeCounter {
                 return true;
             }
             CCIndexRecord r = record.get();
-            if (!fetcherConfig.getRecordSelector().select(r)) {
+            if (!fetcherConfig
+                    .getRecordSelector()
+                    .select(r)) {
                 return true;
             }
             increment(totalCounts, r.getNormalizedMimeDetected());
             if (!StringUtils.isBlank(r.getTruncated())) {
-                long truncated = counter.getTruncated().incrementAndGet();
+                long truncated = counter
+                        .getTruncated()
+                        .incrementAndGet();
                 if (fetcherConfig.getMaxFilesTruncated() > -1 &&
                         truncated >= fetcherConfig.getMaxFilesTruncated()) {
                     LOGGER.info("hit max truncated files");
