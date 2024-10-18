@@ -74,7 +74,7 @@ public class CCMimeCounter {
     private static final Long INDEX_WORKER_ID = 42L;
     private static final Long INDEX_READER_ID = 1L;
     private static final Logger LOGGER = LoggerFactory.getLogger(CCMimeCounter.class);
-    private static final int BATCH_SIZE = 100000;
+    private static final int BATCH_SIZE = 50000;
 
     public static void main(String[] args) throws Exception {
         ExtractorConfig fetcherConfig = new ObjectMapper().readValue(new File(args[0]), ExtractorConfig.class);
