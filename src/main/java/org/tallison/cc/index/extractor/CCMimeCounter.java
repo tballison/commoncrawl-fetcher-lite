@@ -128,11 +128,14 @@ public class CCMimeCounter {
         } catch (InterruptedException e) {
             LOGGER.warn("main loop interrupted exception", e);
             throw new RuntimeException(e);
+        } catch (Throwable t) {
+            LOGGER.error("Serious problem", t);
+            throw t;
         } finally {
             executorService.shutdown();
             executorService.shutdownNow();
         }
-
+        LOGGER.info("finished processing; now off to writing reports");
         summarize(detectedMimeCounters);
     }
 
