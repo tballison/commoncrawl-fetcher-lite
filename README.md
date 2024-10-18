@@ -126,7 +126,7 @@ There are many configuration options -- see [ConfiguringTheFetch](ConfiguringThe
 ```
 
 ### 2. Run the Code
-Users must have Java (>= 11) installed.  To check your version: `java -version`.
+Users must have Java (>= 17) installed.  To check your version: `java -version`.
 
 Get the latest released jar from [github](https://github.com/tballison/commoncrawl-fetcher-lite/releases).
 
@@ -151,7 +151,7 @@ for each fetch.
 For other scenarios, see [AdvancedScenarios](AdvancedScenarios.md).
 
 ## How to Build
-For those who want to build the latest, you'll need Java jdk >= 11,
+For those who want to build the latest, you'll need Java jdk >= 17,
 and recent versions of git and maven installed.
 1. `git clone https://github.com/tballison/commoncrawl-fetcher-lite`
 1. `cd commoncrawl-fetcher-lite`
