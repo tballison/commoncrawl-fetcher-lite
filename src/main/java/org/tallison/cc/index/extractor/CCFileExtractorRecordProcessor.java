@@ -58,7 +58,7 @@ public class CCFileExtractorRecordProcessor extends AbstractRecordProcessor {
         //System.out.println("JSON: " + json);
         long totalRead = counter.getRecordsRead().incrementAndGet();
         if (totalRead % reportEvery == 0) {
-            LOGGER.info("processed: {}", totalRead);
+            LOGGER.info("processed: {}", String.format("%,d", totalRead));
         }
         if (fetcherConfig.getMaxRecords() > -1 && totalRead >= fetcherConfig.getMaxRecords()) {
             LOGGER.info("hit max read");
