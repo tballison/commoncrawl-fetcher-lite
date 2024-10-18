@@ -5,7 +5,12 @@
         "match": "application/pdf",
         "sample": 0.8
       }
-    ]
+    ],
+    "url": [
+        {
+        "extensions": "exe,bat"
+        }
+      ]
   },
   "must": {
     "status": [

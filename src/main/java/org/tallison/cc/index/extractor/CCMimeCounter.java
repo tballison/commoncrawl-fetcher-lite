@@ -207,7 +207,7 @@ public class CCMimeCounter {
                     AbstractRecordProcessor recordProcessor) throws TikaException {
             this.indexUrls = indexUrls;
             this.recordProcessor = recordProcessor;
-            this.fetcher = fetcherConfig.newFetcher();
+            this.fetcher = fetcherConfig.newIndexFetcher();
         }
 
         @Override

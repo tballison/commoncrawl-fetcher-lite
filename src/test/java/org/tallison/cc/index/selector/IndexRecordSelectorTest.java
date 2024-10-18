@@ -30,15 +30,12 @@ import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.tallison.cc.index.CCIndexRecord;
 
-import org.apache.tika.utils.StringUtils;
-
-
 public class IndexRecordSelectorTest {
 
     @Test
     public void testBasic() throws Exception {
         ObjectMapper mapper = new ObjectMapper();
-
+        //this just tests that the deserialization works
         RecordSelector recordSelector =
                 mapper.readValue(getClass().getResourceAsStream("/selectors/basic.json"),
                         RecordSelector.class);
@@ -47,7 +44,12 @@ public class IndexRecordSelectorTest {
     @Test
     @Disabled("for development only")
     public void testIndexFile() throws Exception {
-        Path p = Paths.get("/Users/allison/data/cc/index-work/cdx-00000.gz");
+        Path p = Paths.get("/...CC-MAIN-2023-06/indexes/cdx-00000.gz");
+        ObjectMapper mapper = new ObjectMapper();
+        //this just tests that the deserialization works
+        RecordSelector recordSelector =
+                mapper.readValue(getClass().getResourceAsStream("/selectors/extensions.json"),
+                        RecordSelector.class);
         try (BufferedReader r = new BufferedReader(
                 new InputStreamReader(new GZIPInputStream(Files.newInputStream(p)),
                         StandardCharsets.UTF_8))) {
@@ -56,11 +58,10 @@ public class IndexRecordSelectorTest {
                 Optional<CCIndexRecord> record = CCIndexRecord.parseRecord(line);
                 if (record.isPresent()) {
                     CCIndexRecord indexRecord = record.get();
-                    if (!indexRecord.getMime().equals(indexRecord.getMimeDetected())) {
-                        System.out.println(line);
-                    }
-                    if (!StringUtils.isBlank(indexRecord.getTruncated())) {
-
+                    if (recordSelector.select(indexRecord)) {
+                        System.out.println("Selected: " + indexRecord);
+                    } else {
+                        //System.out.println("Rejected: " + indexRecord.getUrl());
                     }
                 }
                 line = r.readLine();
