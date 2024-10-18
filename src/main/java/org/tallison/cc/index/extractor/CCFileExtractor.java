@@ -59,8 +59,8 @@ import org.apache.tika.utils.StringUtils;
  */
 public class CCFileExtractor {
 
-    private static final Long INDEX_WORKER_ID = 1l;
-    private static final Long INDEX_READER_ID = 2l;
+    private static final Long INDEX_WORKER_ID = 42L;
+    private static final Long INDEX_READER_ID = 1L;
     private static final Logger LOGGER = LoggerFactory.getLogger(CCFileExtractor.class);
 
     public static void main(String[] args) throws Exception {
@@ -124,6 +124,7 @@ public class CCFileExtractor {
             executorService.shutdown();
             executorService.shutdownNow();
         }
+        LOGGER.info("Finished: {}", counter);
     }
 
     private static class IndexWorker implements Callable<Long> {
@@ -134,7 +135,7 @@ public class CCFileExtractor {
         private final Fetcher indexFetcher;
 
         IndexWorker(ExtractorConfig fetcherConfig, ArrayBlockingQueue<FetchEmitTuple> indexUrls,
-                    AbstractRecordProcessor recordProcessor) throws TikaException {
+                    CCFileExtractorRecordProcessor recordProcessor) throws TikaException {
             this.indexUrls = indexUrls;
             this.recordProcessor = recordProcessor;
             this.indexFetcher = fetcherConfig.newIndexFetcher();
