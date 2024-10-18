@@ -66,3 +66,29 @@ Commandline: `java -jar commoncrawl-fetcher-lite-X.Y.Z.jar fetch-files-from-loca
   "targetPathPattern": "xx/xx/xxx"
 }
 ```
+
+## Count mimes from local indices
+
+Config file: `count.json`:
+```json
+{
+  "numThreads": 10,
+  "indices": {
+    "basePath": "my-indices"
+  },
+  "indexFetcher" : {
+    "basePath": "my-indices"
+  },
+  "recordSelector": {
+    "must": {
+      "status": [
+        {
+          "match": "200"
+        }
+      ]
+    }
+  }
+}
+```
+
+Commandline: `java -jar commoncrawl-fetcher-lite-X.Y.Z.jar CountMimes counter.json`

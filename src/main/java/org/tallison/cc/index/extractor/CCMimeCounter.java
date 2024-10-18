@@ -71,8 +71,8 @@ import org.apache.tika.utils.StringUtils;
  */
 public class CCMimeCounter {
 
-    private static final Long INDEX_WORKER_ID = 1l;
-    private static final Long INDEX_READER_ID = 2l;
+    private static final Long INDEX_WORKER_ID = 42L;
+    private static final Long INDEX_READER_ID = 1L;
     private static final Logger LOGGER = LoggerFactory.getLogger(CCMimeCounter.class);
     private static final int BATCH_SIZE = 100000;
 
@@ -114,7 +114,7 @@ public class CCMimeCounter {
                 Future<Long> future = executorCompletionService.take();
                 if (future != null) {
                     Long f = future.get();
-                    LOGGER.debug("completed {}", f);
+                    LOGGER.debug("completed worker or reader value={}", f);
                     if (f.equals(INDEX_WORKER_ID)) {
                         finishedWorkers++;
                     } else if (f.equals(INDEX_READER_ID)) {
@@ -122,10 +122,7 @@ public class CCMimeCounter {
                     }
                 }
             }
-        } catch (TikaConfigException e) {
-            LOGGER.error("main loop exception", e);
-            throw new RuntimeException(e);
-        } catch (ExecutionException e) {
+        } catch (TikaConfigException | ExecutionException e) {
             LOGGER.error("main loop exception", e);
             throw new RuntimeException(e);
         } catch (InterruptedException e) {
