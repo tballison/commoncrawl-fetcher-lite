@@ -28,6 +28,7 @@ import org.tallison.cc.index.extractor.ExtractorConfig;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.io.TikaInputStream;
 import org.apache.tika.metadata.Metadata;
+import org.apache.tika.parser.ParseContext;
 import org.apache.tika.pipes.fetcher.FetchKey;
 import org.apache.tika.pipes.fetcher.http.HttpFetcher;
 
@@ -47,15 +48,16 @@ public class BackoffHttpFetcher extends HttpFetcher {
     }
 
     @Override
-    public InputStream fetch(String fetchKey, Metadata metadata) throws TikaException, IOException {
-        return fetchWithBackOff(new FetchKey("name", getUrl(fetchKey)), metadata);
+    public InputStream fetch(String fetchKey, Metadata metadata, ParseContext parseContext)
+            throws TikaException, IOException {
+        return fetchWithBackOff(new FetchKey("name", getUrl(fetchKey)), metadata, parseContext);
     }
 
     @Override
     public InputStream fetch(String fetchkey, long rangeStart, long rangeEnd, Metadata metadata)
             throws IOException {
         return fetchWithBackOff(new FetchKey("name", getUrl(fetchkey), rangeStart, rangeEnd),
-                metadata);
+                metadata, new ParseContext());
     }
 
     private String getUrl(String fetchKey) {
@@ -69,7 +71,8 @@ public class BackoffHttpFetcher extends HttpFetcher {
         return fetchKey;
     }
 
-    private InputStream fetchWithBackOff(FetchKey fetchKey, Metadata metadata) throws IOException {
+    private InputStream fetchWithBackOff(FetchKey fetchKey, Metadata metadata,
+                                         ParseContext parseContext) throws IOException {
         int tries = 0;
         while (tries < throttleSeconds.length) {
             try {
@@ -109,7 +112,7 @@ public class BackoffHttpFetcher extends HttpFetcher {
             return (TikaInputStream) super.fetch(fetchKey.getFetchKey(), fetchKey.getRangeStart(),
                     fetchKey.getRangeEnd(), metadata);
         } else {
-            return (TikaInputStream) super.fetch(fetchKey.getFetchKey(), metadata);
+            return (TikaInputStream) super.fetch(fetchKey.getFetchKey(), metadata, new ParseContext());
         }
 
     }

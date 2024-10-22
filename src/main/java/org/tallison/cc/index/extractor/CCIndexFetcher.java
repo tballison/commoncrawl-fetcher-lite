@@ -37,6 +37,7 @@ import org.tallison.cc.index.IndexIterator;
 
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.metadata.Metadata;
+import org.apache.tika.parser.ParseContext;
 import org.apache.tika.pipes.FetchEmitTuple;
 import org.apache.tika.pipes.emitter.StreamEmitter;
 import org.apache.tika.pipes.fetcher.Fetcher;
@@ -132,8 +133,8 @@ public class CCIndexFetcher {
         private void fetch(FetchEmitTuple t, Fetcher fetcher, StreamEmitter streamEmitter) {
 
             LOGGER.info("about to download: " + t.getFetchKey().getFetchKey());
-            try (InputStream is = fetcher.fetch(t.getFetchKey().getFetchKey(), new Metadata())) {
-                streamEmitter.emit(t.getFetchKey().getFetchKey(), is, new Metadata());
+            try (InputStream is = fetcher.fetch(t.getFetchKey().getFetchKey(), new Metadata(), new ParseContext())) {
+                streamEmitter.emit(t.getFetchKey().getFetchKey(), is, new Metadata(), new ParseContext());
                 LOGGER.info("successfully downloaded: " + t.getFetchKey().getFetchKey());
             } catch (TikaException | IOException e) {
                 LOGGER.error("failed to copy " + t.getFetchKey().getFetchKey(), e);

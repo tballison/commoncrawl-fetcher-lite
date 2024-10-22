@@ -59,6 +59,7 @@ import org.apache.tika.exception.TikaConfigException;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.io.TikaInputStream;
 import org.apache.tika.metadata.Metadata;
+import org.apache.tika.parser.ParseContext;
 import org.apache.tika.pipes.FetchEmitTuple;
 import org.apache.tika.pipes.fetcher.Fetcher;
 import org.apache.tika.pipes.pipesiterator.CallablePipesIterator;
@@ -239,7 +240,7 @@ public class CCMimeCounter {
                     .getFetchKey(), fetcher.getClass());
             try (TikaInputStream tis = (TikaInputStream) fetcher.fetch(fetchEmitTuple
                     .getFetchKey()
-                    .getFetchKey(), new Metadata())) {
+                    .getFetchKey(), new Metadata(), new ParseContext())) {
                 try (InputStream is = new BufferedInputStream(new GZIPInputStream(tis))) {
                     try (BufferedReader reader = new BufferedReader(
                             new InputStreamReader(is, StandardCharsets.UTF_8))) {

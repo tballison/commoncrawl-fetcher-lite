@@ -44,6 +44,7 @@ import org.apache.tika.exception.TikaConfigException;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.io.TikaInputStream;
 import org.apache.tika.metadata.Metadata;
+import org.apache.tika.parser.ParseContext;
 import org.apache.tika.pipes.FetchEmitTuple;
 import org.apache.tika.pipes.emitter.EmitKey;
 import org.apache.tika.pipes.emitter.StreamEmitter;
@@ -147,7 +148,7 @@ public class FileFromCCWarcExtractor {
             String targetPath = targetPathRewriter.rewrite(targetDigest);
             Metadata metadata = new Metadata();
             try (InputStream is = TikaInputStream.get(tmp, metadata)) {
-                emitter.emit(targetPath, is, new Metadata());
+                emitter.emit(targetPath, is, new Metadata(), new ParseContext());
                 logSuccess(ccIndexRecord, targetDigest, length, targetPath);
             } catch (IOException | TikaException e) {
                 LOGGER.warn("problem writing id={}", id, e);

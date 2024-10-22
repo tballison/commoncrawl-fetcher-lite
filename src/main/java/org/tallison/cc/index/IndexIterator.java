@@ -41,6 +41,7 @@ import org.apache.tika.config.Param;
 import org.apache.tika.exception.TikaConfigException;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.metadata.Metadata;
+import org.apache.tika.parser.ParseContext;
 import org.apache.tika.pipes.FetchEmitTuple;
 import org.apache.tika.pipes.emitter.EmitKey;
 import org.apache.tika.pipes.fetcher.FetchKey;
@@ -90,7 +91,7 @@ public class IndexIterator extends PipesIterator implements Initializable {
     private static void addIndexPaths(Fetcher fetcher, String path, List<String> indexPaths)
             throws IOException, TikaException {
 
-        try (InputStream is = fetcher.fetch(path, new Metadata())) {
+        try (InputStream is = fetcher.fetch(path, new Metadata(), new ParseContext())) {
             try (BufferedReader reader = getReader(is, path)) {
                 String line = reader.readLine();
                 while (line != null) {
