@@ -178,7 +178,7 @@ public class CCFileExtractor {
                         String line = reader.readLine();
                         int lines = 0;
                         long elapsed = System.currentTimeMillis() - start;
-                        LOGGER.info("Finished fetching {} bytes in {} ms for index gz: {}",
+                        LOGGER.info("Finished fetching index {} bytes in {} ms for index gz: {}",
                                 String.format(Locale.US, "%,d", tis.getLength()),
                                 String.format(Locale.US, "%,d", elapsed),
                                 fetchEmitTuple.getFetchKey().getFetchKey());

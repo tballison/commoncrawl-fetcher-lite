@@ -105,12 +105,12 @@ public class FileFromCCWarcExtractor {
 
         Optional<WarcPayload> payload = ((WarcResponse) record).payload();
         if (!payload.isPresent()) {
-            LOGGER.debug("no payload {}", id);
+            LOGGER.warn("no payload {}", id);
             ccIndexReaderCounter.getEmptyPayload().incrementAndGet();
             return;
         }
         if (payload.get().body().size() == 0) {
-            LOGGER.debug("empty payload id={}", id);
+            LOGGER.warn("empty payload id={}", id);
             ccIndexReaderCounter.getEmptyPayload().incrementAndGet();
             return;
         }
