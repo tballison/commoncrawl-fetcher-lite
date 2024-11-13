@@ -105,12 +105,12 @@ public class FileFromCCWarcExtractor {
 
         Optional<WarcPayload> payload = ((WarcResponse) record).payload();
         if (!payload.isPresent()) {
-            LOGGER.warn("no payload {}", id);
+            LOGGER.warn("payload not present {}", id);
             ccIndexReaderCounter.getEmptyPayload().incrementAndGet();
             return;
         }
         if (payload.get().body().size() == 0) {
-            LOGGER.warn("empty payload id={}", id);
+            LOGGER.warn("payload body size==0 id={}", id);
             ccIndexReaderCounter.getEmptyPayload().incrementAndGet();
             return;
         }
@@ -142,7 +142,7 @@ public class FileFromCCWarcExtractor {
             try {
                 length = Files.size(tmp);
             } catch (IOException e) {
-                LOGGER.warn("IOException during digesting: " + tmp.toAbsolutePath());
+                LOGGER.warn("IOException getting temp file length: " + tmp.toAbsolutePath());
                 return;
             }
             String targetPath = targetPathRewriter.rewrite(targetDigest);
@@ -151,7 +151,7 @@ public class FileFromCCWarcExtractor {
                 emitter.emit(targetPath, is, new Metadata(), new ParseContext());
                 logSuccess(ccIndexRecord, targetDigest, length, targetPath);
             } catch (IOException | TikaException e) {
-                LOGGER.warn("problem writing id={}", id, e);
+                LOGGER.warn("problem writing id=" + id, e);
             }
         } finally {
             try {
