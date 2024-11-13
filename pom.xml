@@ -26,7 +26,7 @@
         <httpcore.version>4.4.16</httpcore.version>
         <httpclient.version>4.5.14</httpclient.version>
         <httpcomponents.version>4.4.14</httpcomponents.version>
-        <jackson.version>2.18.0</jackson.version>
+        <jackson.version>2.18.1</jackson.version>
         <jupiter.version>5.11.3</jupiter.version>
         <log4j2.version>2.24.1</log4j2.version>
         <tika.version>3.0.0</tika.version>
@@ -202,12 +202,12 @@
                 <!-- mvn validate -->
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-checkstyle-plugin</artifactId>
-                <version>3.5.0</version>
+                <version>3.6.0</version>
                 <dependencies>
                     <dependency>
                         <groupId>com.puppycrawl.tools</groupId>
                         <artifactId>checkstyle</artifactId>
-                        <version>10.18.2</version>
+                        <version>10.19.0</version>
                     </dependency>
 
                 </dependencies>
