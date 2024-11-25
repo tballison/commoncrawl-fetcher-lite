@@ -137,7 +137,7 @@
         <dependency>
             <groupId>org.netpreserve</groupId>
             <artifactId>jwarc</artifactId>
-            <version>0.30.0</version>
+            <version>0.31.1</version>
         </dependency>
         <!-- logging -->
         <dependency>
