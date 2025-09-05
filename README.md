@@ -23,8 +23,8 @@ appended to other gzipped WARC files to create compound WARC files stored in AWS
 For a single crawl, there are ~90,000 compound WARC files, each ~1 GB in size.  
 Uncompressed, a single's month crawl can weigh in at ~400TiB.
 
->**Note:** Common Crawl truncates files at **1MB**. Researchers who want complete files must refetch
-truncated files from the original URLs.
+>**Note:** Common Crawl truncates files at **5MB**. Researchers who want complete files must refetch
+truncated files from the original URLs. Before the March 2025 crawl, Common Crawl truncated files at 1MB.
 
 The index files and the compound WARC files are accessible via `S3` (`s3://commoncrawl/`) and HTTPS (`https://data.commoncrawl.org/`).
 
