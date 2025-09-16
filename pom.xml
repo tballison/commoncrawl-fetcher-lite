@@ -31,7 +31,7 @@
         <jackson.annotations.version>2.20</jackson.annotations.version>
         <jupiter.version>5.13.4</jupiter.version>
         <log4j2.version>2.25.1</log4j2.version>
-        <tika.version>3.2.2</tika.version>
+        <tika.version>3.2.3</tika.version>
         <maven.shade.version>3.6.0</maven.shade.version>
     </properties>
     <dependencyManagement>
