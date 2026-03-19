@@ -16,6 +16,9 @@
  */
 package org.tallison.cc.index;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -31,8 +34,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.zip.GZIPInputStream;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import org.tallison.cc.index.extractor.ExtractorConfig;
 import org.tallison.cc.index.io.BackoffHttpFetcher;
 
@@ -52,21 +53,24 @@ import org.apache.tika.pipes.pipesiterator.PipesIterator;
 
 public class IndexIterator extends PipesIterator implements Initializable {
 
-    //temporary storage of the paths this class was constructed with
-    //during initialization, we'll figure out if these are literal index paths
-    //or paths to index lists.
-    private final List<String> initPaths = new ArrayList<>();
-    private final List<String> indexPaths = new ArrayList<>();
+    // temporary storage of the paths this class was constructed with.
+    // During initialization, we figure out if these are index list paths
+    // or literal index file paths.
+    private final List<String> configuredPaths = new ArrayList<>();
+    private final List<String> resolvedIndexFiles = new ArrayList<>();
 
     private Fetcher fetcher = null;
 
     int maxIndexFiles = -1;
+    int skipIndexFiles = 0;
 
     @JsonCreator
-    public IndexIterator(@JsonProperty("profile") String profile,
-                         @JsonProperty("basePath") String basePath,
-                         @JsonProperty("paths") List<String> indexPaths,
-                         @JsonProperty("maxIndexFiles") Integer maxIndexFiles) {
+    public IndexIterator(
+            @JsonProperty("profile") String profile,
+            @JsonProperty("basePath") String basePath,
+            @JsonProperty("paths") List<String> indexPaths,
+            @JsonProperty("maxIndexFiles") Integer maxIndexFiles,
+            @JsonProperty("skipIndexFiles") Integer skipIndexFiles) {
         if (profile != null) {
             fetcher = new S3Fetcher();
             ((S3Fetcher) fetcher).setProfile(profile);
@@ -77,18 +81,22 @@ public class IndexIterator extends PipesIterator implements Initializable {
             fetcher = new FileSystemFetcher();
             ((FileSystemFetcher) fetcher).setBasePath(basePath);
         } else {
-            //do nothing
+            // do nothing
         }
         if (indexPaths != null) {
-            initPaths.addAll(indexPaths);
+            configuredPaths.addAll(indexPaths);
         }
 
         if (maxIndexFiles != null) {
             this.maxIndexFiles = maxIndexFiles;
         }
+        if (skipIndexFiles != null) {
+            this.skipIndexFiles = skipIndexFiles;
+        }
     }
 
-    private static void addIndexPaths(Fetcher fetcher, String path, List<String> indexPaths)
+    private static void resolveIndexList(
+            Fetcher fetcher, String path, List<String> resolvedIndexFiles)
             throws IOException, TikaException {
 
         try (InputStream is = fetcher.fetch(path, new Metadata(), new ParseContext())) {
@@ -96,11 +104,11 @@ public class IndexIterator extends PipesIterator implements Initializable {
                 String line = reader.readLine();
                 while (line != null) {
                     if (line.startsWith("#") || !line.endsWith(".gz")) {
-                        //skip comments and paths for index files that do not end in .gz
+                        // skip comments and paths that do not end in .gz
                         line = reader.readLine();
                         continue;
                     }
-                    indexPaths.add(line);
+                    resolvedIndexFiles.add(line);
                     line = reader.readLine();
                 }
             }
@@ -119,7 +127,12 @@ public class IndexIterator extends PipesIterator implements Initializable {
     @Override
     protected void enqueue() throws IOException, TimeoutException, InterruptedException {
         int added = 0;
-        for (String p : indexPaths) {
+        int skipped = 0;
+        for (String p : resolvedIndexFiles) {
+            if (skipped < skipIndexFiles) {
+                skipped++;
+                continue;
+            }
             FetchEmitTuple t = new FetchEmitTuple(p, new FetchKey("", p), new EmitKey());
             tryToAdd(t);
             if (maxIndexFiles > -1 && ++added >= maxIndexFiles) {
@@ -132,45 +145,42 @@ public class IndexIterator extends PipesIterator implements Initializable {
     @Override
     public void initialize(Map<String, Param> params) throws TikaConfigException {
         if (fetcher == null) {
-            // TODO -- figure out if we actually need to fetch (e.g. to fetch cc-index.paths.gz) or
-            //if these are just the literal paths to the index files
-            fetcher = new BackoffHttpFetcher(new long[]{30, 120});
+            fetcher = new BackoffHttpFetcher(ExtractorConfig.DEFAULT_THROTTLE_SECONDS);
         }
         if (fetcher instanceof Initializable) {
             ((Initializable) fetcher).initialize(params);
         }
         Matcher m = Pattern.compile("indexes/cdx-\\d{5,5}.gz\\Z").matcher("");
-        if (initPaths.size() == 0) {
+        if (configuredPaths.size() == 0) {
             try {
                 loadLocalFiles(fetcher);
             } catch (IOException e) {
                 throw new TikaConfigException("Problem reading from local directory");
             }
         }
-        for (String p : initPaths) {
+        for (String p : configuredPaths) {
             if (p.endsWith("cc-index.paths.gz")) {
                 try {
-                    addIndexPaths(fetcher, p, indexPaths);
+                    resolveIndexList(fetcher, p, resolvedIndexFiles);
                 } catch (IOException | TikaException e) {
                     throw new TikaConfigException(e.getMessage());
                 }
             } else if (m.reset(p).find()) {
-                indexPaths.add(p);
+                resolvedIndexFiles.add(p);
             } else {
                 throw new TikaConfigException(
-                        "Paths need to be path lists (.../cc-index.paths.gz) " +
-                                "or indexes (indexes/cdx-\\d\\d\\d\\d\\d.gz");
+                        "Paths need to be path lists (.../cc-index.paths.gz) "
+                                + "or indexes (indexes/cdx-\\d\\d\\d\\d\\d.gz");
             }
         }
-
     }
 
     private void loadLocalFiles(Fetcher fetcher) throws IOException {
         if (fetcher instanceof FileSystemFetcher) {
-            Path basePath = ((FileSystemFetcher)fetcher).getBasePath();
-            Files.walk(basePath).filter(p -> Files.isRegularFile(p)).forEach(
-                    p -> initPaths.add(basePath.relativize(p).toString())
-            );
+            Path basePath = ((FileSystemFetcher) fetcher).getBasePath();
+            Files.walk(basePath)
+                    .filter(p -> Files.isRegularFile(p))
+                    .forEach(p -> configuredPaths.add(basePath.relativize(p).toString()));
         }
     }
 }

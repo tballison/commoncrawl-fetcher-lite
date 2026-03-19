@@ -17,8 +17,7 @@
 package org.tallison.cc.index.io;
 
 /**
- * This is thrown when our throttling strategy fails and aws
- * is still returning 503 -- please slow down
+ * This is thrown when our throttling strategy fails and aws is still returning 503 -- please slow
+ * down
  */
-public class ThrottleException extends RuntimeException {
-}
+public class ThrottleException extends RuntimeException {}

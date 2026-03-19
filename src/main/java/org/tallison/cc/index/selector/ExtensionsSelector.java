@@ -16,25 +16,27 @@
  */
 package org.tallison.cc.index.selector;
 
-import java.util.HashSet;
-import java.util.Locale;
-import java.util.Set;
-
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.commons.io.FilenameUtils;
 
+import java.util.HashSet;
+import java.util.Locale;
+import java.util.Set;
+
 import org.apache.tika.utils.StringUtils;
 
 /**
- * Comma delimited list of extensions to accept. Extensions are currently matched case insensitively.
+ * Comma delimited list of extensions to accept. Extensions are currently matched case
+ * insensitively.
  */
 public class ExtensionsSelector extends AbstractSamplingSelector {
     final Set<String> extensions = new HashSet<>();
 
     @JsonCreator
-    public ExtensionsSelector(@JsonProperty("extensions") String commaDelimitedExtensions,
-                              @JsonProperty("sample") Double sample) {
+    public ExtensionsSelector(
+            @JsonProperty("extensions") String commaDelimitedExtensions,
+            @JsonProperty("sample") Double sample) {
         super(sample == null ? new SampleAll() : new SampleSome(sample));
         for (String ext : commaDelimitedExtensions.split(",")) {
             if (!StringUtils.isBlank(ext)) {
@@ -46,7 +48,7 @@ public class ExtensionsSelector extends AbstractSamplingSelector {
     @Override
     public boolean select(String val) {
         String ext = FilenameUtils.getExtension(val);
-        if (! StringUtils.isBlank(ext)) {
+        if (!StringUtils.isBlank(ext)) {
             ext = ext.toLowerCase(Locale.ROOT);
             if (extensions.contains(ext)) {
                 return sampler.select(val);

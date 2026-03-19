@@ -16,6 +16,10 @@
  */
 package org.tallison.cc.index.extractor;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.File;
@@ -36,9 +40,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.zip.GZIPInputStream;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.tallison.cc.index.AbstractRecordProcessor;
 import org.tallison.cc.index.CCIndexReaderCounter;
 import org.tallison.cc.index.IndexIterator;
@@ -55,13 +56,13 @@ import org.apache.tika.pipes.pipesiterator.PipesIterator;
 import org.apache.tika.utils.StringUtils;
 
 /**
- * This is a lighter class that doesn't rely on a database
- * to extract files from CC and log a list of truncated urls.
+ * This is a lighter class that doesn't rely on a database to extract files from CC and log a list
+ * of truncated urls.
  */
 public class CCFileExtractor {
 
     private static final Long INDEX_WORKER_ID = 42L;
-    private static final Long INDEX_READER_ID = 1L;
+    private static final Long INDEX_ITERATOR_ID = 1L;
     private static final Logger LOGGER = LoggerFactory.getLogger(CCFileExtractor.class);
 
     public static void main(String[] args) throws Exception {
@@ -71,14 +72,13 @@ public class CCFileExtractor {
     }
 
     private static void execute(ExtractorConfig fetcherConfig) throws TikaException {
-        ArrayBlockingQueue<FetchEmitTuple> indexPathsList = new ArrayBlockingQueue<>(1000);
-        //IndexPathsReader reads a file containing a list of cc-index.paths files
-        //and writes the literal gz files (cc-index/collections/CC-MAIN-2023-06/indexes/cdx-00000.gz)
-        //to indexPathsList
+        ArrayBlockingQueue<FetchEmitTuple> indexFileQueue = new ArrayBlockingQueue<>(1000);
+        // The IndexIterator resolves configured paths (which may be index lists or literal
+        // index file paths) and enqueues individual index file paths (e.g. cdx-00000.gz)
+        // for workers to process.
 
-
-        //IndexWorker reads a single index.gz file at a time and processes each record
-        //It fetches non truncated files and logs truncated files
+        // Each IndexWorker fetches and processes one index file (cdx-*.gz) at a time,
+        // extracting non-truncated files and logging truncated URLs.
         int totalThreads = fetcherConfig.getNumThreads() + 1;
 
         ExecutorService executorService = Executors.newFixedThreadPool(totalThreads);
@@ -87,7 +87,7 @@ public class CCFileExtractor {
 
         IndexIterator indexIterator = fetcherConfig.getIndexIterator();
         indexIterator.initialize(Collections.EMPTY_MAP);
-        executorCompletionService.submit(new CallablePipesIterator(indexIterator, indexPathsList));
+        executorCompletionService.submit(new CallablePipesIterator(indexIterator, indexFileQueue));
         CCIndexReaderCounter counter = new CCIndexReaderCounter();
         int finishedWorkers = 0;
         try {
@@ -95,19 +95,18 @@ public class CCFileExtractor {
                 CCFileExtractorRecordProcessor processor =
                         new CCFileExtractorRecordProcessor(fetcherConfig, counter);
                 executorCompletionService.submit(
-                        new IndexWorker(fetcherConfig, indexPathsList, processor));
+                        new IndexWorker(fetcherConfig, indexFileQueue, processor));
             }
 
-
             while (finishedWorkers < fetcherConfig.getNumThreads()) {
-                //blocking
+                // blocking
                 Future<Long> future = executorCompletionService.take();
                 if (future != null) {
                     Long f = future.get();
                     LOGGER.debug("completed {}", f);
                     if (f.equals(INDEX_WORKER_ID)) {
                         finishedWorkers++;
-                    } else if (f.equals(INDEX_READER_ID)) {
+                    } else if (f.equals(INDEX_ITERATOR_ID)) {
                         LOGGER.info("Index paths reader successfully completed");
                     }
                 }
@@ -135,11 +134,14 @@ public class CCFileExtractor {
 
         private final Fetcher indexFetcher;
 
-        IndexWorker(ExtractorConfig fetcherConfig, ArrayBlockingQueue<FetchEmitTuple> indexUrls,
-                    CCFileExtractorRecordProcessor recordProcessor) throws TikaException {
+        IndexWorker(
+                ExtractorConfig fetcherConfig,
+                ArrayBlockingQueue<FetchEmitTuple> indexUrls,
+                CCFileExtractorRecordProcessor recordProcessor)
+                throws TikaException {
             this.indexUrls = indexUrls;
             this.recordProcessor = recordProcessor;
-            this.indexFetcher = fetcherConfig.newIndexFetcher();
+            this.indexFetcher = fetcherConfig.newIndexFileFetcher();
         }
 
         @Override
@@ -154,7 +156,7 @@ public class CCFileExtractor {
 
                 if (indexUrl == PipesIterator.COMPLETED_SEMAPHORE) {
                     recordProcessor.close();
-                    //can hang forever
+                    // can hang forever
                     indexUrls.put(PipesIterator.COMPLETED_SEMAPHORE);
                     return INDEX_WORKER_ID;
                 }
@@ -164,21 +166,26 @@ public class CCFileExtractor {
             return INDEX_WORKER_ID;
         }
 
-        private boolean processFile(FetchEmitTuple fetchEmitTuple,
-                                    AbstractRecordProcessor recordProcessor)
+        private boolean processFile(
+                FetchEmitTuple fetchEmitTuple, AbstractRecordProcessor recordProcessor)
                 throws InterruptedException {
             long start = System.currentTimeMillis();
-            LOGGER.info("starting to fetch index gz: {}",
-                    fetchEmitTuple.getFetchKey().getFetchKey());
-            try (TikaInputStream tis = (TikaInputStream) indexFetcher.fetch(
-                    fetchEmitTuple.getFetchKey().getFetchKey(), new Metadata(), new ParseContext())) {
+            LOGGER.info(
+                    "starting to fetch index gz: {}", fetchEmitTuple.getFetchKey().getFetchKey());
+            try (TikaInputStream tis =
+                    (TikaInputStream)
+                            indexFetcher.fetch(
+                                    fetchEmitTuple.getFetchKey().getFetchKey(),
+                                    new Metadata(),
+                                    new ParseContext())) {
                 try (InputStream is = new BufferedInputStream(new GZIPInputStream(tis))) {
-                    try (BufferedReader reader = new BufferedReader(
-                            new InputStreamReader(is, StandardCharsets.UTF_8))) {
+                    try (BufferedReader reader =
+                            new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8))) {
                         String line = reader.readLine();
                         int lines = 0;
                         long elapsed = System.currentTimeMillis() - start;
-                        LOGGER.info("Finished fetching index {} bytes in {} ms for index gz: {}",
+                        LOGGER.info(
+                                "Finished fetching index {} bytes in {} ms for index gz: {}",
                                 String.format(Locale.US, "%,d", tis.getLength()),
                                 String.format(Locale.US, "%,d", elapsed),
                                 fetchEmitTuple.getFetchKey().getFetchKey());
@@ -206,7 +213,8 @@ public class CCFileExtractor {
                         "failed while processing " + fetchEmitTuple.getFetchKey().getFetchKey(), e);
             }
             long elapsed = System.currentTimeMillis() - start;
-            LOGGER.info("finished processing index gz in ({}) ms: {}",
+            LOGGER.info(
+                    "finished processing index gz in ({}) ms: {}",
                     String.format(Locale.US, "%,d", elapsed),
                     fetchEmitTuple.getFetchKey().getFetchKey());
             return true;

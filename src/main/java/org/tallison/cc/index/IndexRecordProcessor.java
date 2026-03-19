@@ -17,7 +17,6 @@
 
 package org.tallison.cc.index;
 
-
 import java.io.IOException;
 
 public interface IndexRecordProcessor {

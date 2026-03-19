@@ -18,11 +18,12 @@ package org.tallison.cc.index;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.Test;
+
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import org.junit.jupiter.api.Test;
 import org.tallison.cc.index.extractor.ExtractorConfig;
 import org.tallison.cc.index.io.BackoffHttpFetcher;
 
@@ -35,7 +36,8 @@ public class FetcherConfigTest {
     @Test
     public void testBasic() throws Exception {
         Path p = Paths.get(getClass().getResource("/configs/basic-http.json").toURI());
-        ExtractorConfig fetcherConfig = new ObjectMapper().readValue(p.toFile(), ExtractorConfig.class);
+        ExtractorConfig fetcherConfig =
+                new ObjectMapper().readValue(p.toFile(), ExtractorConfig.class);
 
         assertEquals(BackoffHttpFetcher.class, fetcherConfig.newFetcher().getClass());
         assertEquals(FileSystemEmitter.class, fetcherConfig.newEmitter().getClass());
@@ -44,9 +46,10 @@ public class FetcherConfigTest {
     @Test
     public void testLocalIndices() throws Exception {
         Path p = Paths.get(getClass().getResource("/configs/basic-local.json").toURI());
-        ExtractorConfig fetcherConfig = new ObjectMapper().readValue(p.toFile(), ExtractorConfig.class);
+        ExtractorConfig fetcherConfig =
+                new ObjectMapper().readValue(p.toFile(), ExtractorConfig.class);
 
-        //TODO -- add actual unit test that tests FSFetcher
+        // TODO -- add actual unit test that tests FSFetcher
         assertEquals(BackoffHttpFetcher.class, fetcherConfig.newFetcher().getClass());
         assertEquals(FileSystemEmitter.class, fetcherConfig.newEmitter().getClass());
     }
@@ -54,9 +57,10 @@ public class FetcherConfigTest {
     @Test
     public void testS3() throws Exception {
         Path p = Paths.get(getClass().getResource("/configs/basic-s3.json").toURI());
-        ExtractorConfig fetcherConfig = new ObjectMapper().readValue(p.toFile(), ExtractorConfig.class);
+        ExtractorConfig fetcherConfig =
+                new ObjectMapper().readValue(p.toFile(), ExtractorConfig.class);
 
-        //TODO -- add actual unit test that tests fetcher and emitter
+        // TODO -- add actual unit test that tests fetcher and emitter
         assertEquals(S3Fetcher.class, fetcherConfig.newFetcher().getClass());
         assertEquals(S3Emitter.class, fetcherConfig.newEmitter().getClass());
     }

@@ -21,7 +21,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-
 public abstract class AbstractRecordProcessor implements IndexRecordProcessor {
 
     protected static AtomicInteger threadCounter = new AtomicInteger(0);
@@ -32,7 +31,7 @@ public abstract class AbstractRecordProcessor implements IndexRecordProcessor {
         threadNumber = threadCounter.incrementAndGet();
     }
 
-    //returns "" if key is null, otherwise, trims and converts remaining \r\n\t to " "
+    // returns "" if key is null, otherwise, trims and converts remaining \r\n\t to " "
     protected static String clean(String key) {
         if (key == null) {
             return "";
@@ -62,5 +61,4 @@ public abstract class AbstractRecordProcessor implements IndexRecordProcessor {
         ext = ext.replaceAll("\\/$", "");
         return ext;
     }
-
 }

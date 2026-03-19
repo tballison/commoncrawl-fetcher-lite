@@ -16,6 +16,13 @@
  */
 package org.tallison.cc.index.extractor;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.commons.csv.CSVFormat;
+import org.apache.commons.csv.CSVPrinter;
+import org.apache.commons.lang3.mutable.MutableLong;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -44,12 +51,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.zip.GZIPInputStream;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.commons.csv.CSVFormat;
-import org.apache.commons.csv.CSVPrinter;
-import org.apache.commons.lang3.mutable.MutableLong;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.tallison.cc.index.AbstractRecordProcessor;
 import org.tallison.cc.index.CCIndexReaderCounter;
 import org.tallison.cc.index.CCIndexRecord;
@@ -67,38 +68,38 @@ import org.apache.tika.pipes.pipesiterator.PipesIterator;
 import org.apache.tika.utils.StringUtils;
 
 /**
- * This counts mime_detected.  Use a regular file selector to include
- * only urls that had a 200, e.g.
+ * This counts mime_detected. Use a regular file selector to include only urls that had a 200, e.g.
  */
 public class CCMimeCounter {
 
     private static final Long INDEX_WORKER_ID = 42L;
-    private static final Long INDEX_READER_ID = 1L;
+    private static final Long INDEX_ITERATOR_ID = 1L;
     private static final Logger LOGGER = LoggerFactory.getLogger(CCMimeCounter.class);
     private static final int BATCH_SIZE = 50000;
 
     public static void main(String[] args) throws Exception {
-        ExtractorConfig fetcherConfig = new ObjectMapper().readValue(new File(args[0]), ExtractorConfig.class);
+        ExtractorConfig fetcherConfig =
+                new ObjectMapper().readValue(new File(args[0]), ExtractorConfig.class);
         execute(fetcherConfig);
     }
 
     private static void execute(ExtractorConfig fetcherConfig) throws IOException, TikaException {
-        ArrayBlockingQueue<FetchEmitTuple> indexPathsList = new ArrayBlockingQueue<>(1000);
-        //IndexPathsReader reads a file containing a list of cc-index.paths files
-        //and writes the literal gz files (cc-index/collections/CC-MAIN-2023-06/indexes/cdx-00000.gz)
-        //to indexPathsList
+        ArrayBlockingQueue<FetchEmitTuple> indexFileQueue = new ArrayBlockingQueue<>(1000);
+        // The IndexIterator resolves configured paths (which may be index lists or literal
+        // index file paths) and enqueues individual index file paths (e.g. cdx-00000.gz)
+        // for workers to process.
 
-
-        //IndexWorker reads a single index.gz file at a time and processes each record
-        //It fetches non truncated files and logs truncated files
+        // Each IndexWorker fetches and processes one index file (cdx-*.gz) at a time,
+        // extracting non-truncated files and logging truncated URLs.
         int totalThreads = fetcherConfig.getNumThreads() + 1;
 
         ExecutorService executorService = Executors.newFixedThreadPool(totalThreads);
-        ExecutorCompletionService<Long> executorCompletionService = new ExecutorCompletionService<>(executorService);
+        ExecutorCompletionService<Long> executorCompletionService =
+                new ExecutorCompletionService<>(executorService);
 
         IndexIterator indexIterator = fetcherConfig.getIndexIterator();
         indexIterator.initialize(Collections.EMPTY_MAP);
-        executorCompletionService.submit(new CallablePipesIterator(indexIterator, indexPathsList));
+        executorCompletionService.submit(new CallablePipesIterator(indexIterator, indexFileQueue));
         CCIndexReaderCounter counter = new CCIndexReaderCounter();
         int finishedWorkers = 0;
         List<DetectedMimeCounter> detectedMimeCounters = new ArrayList<>();
@@ -106,19 +107,19 @@ public class CCMimeCounter {
             for (int i = 0; i < fetcherConfig.getNumThreads(); i++) {
                 DetectedMimeCounter processor = new DetectedMimeCounter(fetcherConfig, counter);
                 detectedMimeCounters.add(processor);
-                executorCompletionService.submit(new IndexWorker(fetcherConfig, indexPathsList, processor));
+                executorCompletionService.submit(
+                        new IndexWorker(fetcherConfig, indexFileQueue, processor));
             }
 
-
             while (finishedWorkers < fetcherConfig.getNumThreads()) {
-                //blocking
+                // blocking
                 Future<Long> future = executorCompletionService.take();
                 if (future != null) {
                     Long f = future.get();
                     LOGGER.debug("completed worker or reader value={}", f);
                     if (f.equals(INDEX_WORKER_ID)) {
                         finishedWorkers++;
-                    } else if (f.equals(INDEX_READER_ID)) {
+                    } else if (f.equals(INDEX_ITERATOR_ID)) {
                         LOGGER.info("Index paths reader successfully completed");
                     }
                 }
@@ -140,7 +141,8 @@ public class CCMimeCounter {
         summarize(detectedMimeCounters);
     }
 
-    private static void summarize(List<DetectedMimeCounter> detectedMimeCounters) throws IOException {
+    private static void summarize(List<DetectedMimeCounter> detectedMimeCounters)
+            throws IOException {
         Map<String, Long> total = new HashMap<>();
         Map<String, Long> truncated = new HashMap<>();
         Map<String, Long> nonTruncated = new HashMap<>();
@@ -154,8 +156,8 @@ public class CCMimeCounter {
         report("non-truncated", nonTruncated);
     }
 
-    private static void calcNonTruncated(Map<String, Long> truncated,
-                                         Map<String, Long> total, Map<String, Long> nonTruncated) {
+    private static void calcNonTruncated(
+            Map<String, Long> truncated, Map<String, Long> total, Map<String, Long> nonTruncated) {
         for (Map.Entry<String, Long> e : total.entrySet()) {
             Long val = e.getValue();
             Long t = truncated.getOrDefault(e.getKey(), 0l);
@@ -165,21 +167,20 @@ public class CCMimeCounter {
     }
 
     private static void report(String name, Map<String, Long> m) throws IOException {
-        try (BufferedWriter writer = Files.newBufferedWriter(
-                Paths.get(name + ".csv"), StandardCharsets.UTF_8)) {
+        try (BufferedWriter writer =
+                Files.newBufferedWriter(Paths.get(name + ".csv"), StandardCharsets.UTF_8)) {
             try (CSVPrinter printer = new CSVPrinter(writer, CSVFormat.EXCEL)) {
                 printer.printRecord("mime", "count");
-                m
-                        .entrySet()
-                        .stream()
+                m.entrySet().stream()
                         .sorted(Collections.reverseOrder(Map.Entry.comparingByValue()))
-                        .forEach(e -> {
-                            try {
-                                printer.printRecord(e.getKey(), e.getValue());
-                            } catch (IOException ex) {
-                                throw new RuntimeException(ex);
-                            }
-                        });
+                        .forEach(
+                                e -> {
+                                    try {
+                                        printer.printRecord(e.getKey(), e.getValue());
+                                    } catch (IOException ex) {
+                                        throw new RuntimeException(ex);
+                                    }
+                                });
             }
         }
     }
@@ -190,9 +191,7 @@ public class CCMimeCounter {
             if (cnt == null) {
                 cnt = 0l;
             }
-            cnt += e
-                    .getValue()
-                    .getValue();
+            cnt += e.getValue().getValue();
             to.put(e.getKey(), cnt);
         }
     }
@@ -204,11 +203,14 @@ public class CCMimeCounter {
 
         private final Fetcher fetcher;
 
-        IndexWorker(ExtractorConfig fetcherConfig, ArrayBlockingQueue<FetchEmitTuple> indexUrls,
-                    AbstractRecordProcessor recordProcessor) throws TikaException {
+        IndexWorker(
+                ExtractorConfig fetcherConfig,
+                ArrayBlockingQueue<FetchEmitTuple> indexUrls,
+                AbstractRecordProcessor recordProcessor)
+                throws TikaException {
             this.indexUrls = indexUrls;
             this.recordProcessor = recordProcessor;
-            this.fetcher = fetcherConfig.newIndexFetcher();
+            this.fetcher = fetcherConfig.newIndexFileFetcher();
         }
 
         @Override
@@ -223,7 +225,7 @@ public class CCMimeCounter {
 
                 if (indexUrl == PipesIterator.COMPLETED_SEMAPHORE) {
                     recordProcessor.close();
-                    //can hang forever
+                    // can hang forever
                     indexUrls.put(PipesIterator.COMPLETED_SEMAPHORE);
                     return INDEX_WORKER_ID;
                 }
@@ -232,25 +234,30 @@ public class CCMimeCounter {
             return INDEX_WORKER_ID;
         }
 
-        private boolean processFile(FetchEmitTuple fetchEmitTuple,
-                                    AbstractRecordProcessor recordProcessor) throws InterruptedException {
+        private boolean processFile(
+                FetchEmitTuple fetchEmitTuple, AbstractRecordProcessor recordProcessor)
+                throws InterruptedException {
             long start = System.currentTimeMillis();
-            LOGGER.info("starting to fetch index gz path={} with fetcher class={}", fetchEmitTuple
-                    .getFetchKey()
-                    .getFetchKey(), fetcher.getClass());
-            try (TikaInputStream tis = (TikaInputStream) fetcher.fetch(fetchEmitTuple
-                    .getFetchKey()
-                    .getFetchKey(), new Metadata(), new ParseContext())) {
+            LOGGER.info(
+                    "starting to fetch index gz path={} with fetcher class={}",
+                    fetchEmitTuple.getFetchKey().getFetchKey(),
+                    fetcher.getClass());
+            try (TikaInputStream tis =
+                    (TikaInputStream)
+                            fetcher.fetch(
+                                    fetchEmitTuple.getFetchKey().getFetchKey(),
+                                    new Metadata(),
+                                    new ParseContext())) {
                 try (InputStream is = new BufferedInputStream(new GZIPInputStream(tis))) {
-                    try (BufferedReader reader = new BufferedReader(
-                            new InputStreamReader(is, StandardCharsets.UTF_8))) {
+                    try (BufferedReader reader =
+                            new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8))) {
                         int lineCount = 0;
                         long elapsed = System.currentTimeMillis() - start;
-                        LOGGER.info("Finished fetching {} bytes in {} ms for index gz: {}",
+                        LOGGER.info(
+                                "Finished fetching {} bytes in {} ms for index gz: {}",
                                 String.format(Locale.US, "%,d", tis.getLength()),
-                                String.format(Locale.US, "%,d", elapsed), fetchEmitTuple
-                                        .getFetchKey()
-                                        .getFetchKey());
+                                String.format(Locale.US, "%,d", elapsed),
+                                fetchEmitTuple.getFetchKey().getFetchKey());
                         List<String> lines = new ArrayList<>();
                         String line = reader.readLine();
                         while (line != null) {
@@ -275,20 +282,19 @@ public class CCMimeCounter {
                     }
                 }
             } catch (TikaException | IOException e) {
-                LOGGER.error("failed while processing " + fetchEmitTuple
-                        .getFetchKey()
-                        .getFetchKey(), e);
+                LOGGER.error(
+                        "failed while processing " + fetchEmitTuple.getFetchKey().getFetchKey(), e);
             }
             long elapsed = System.currentTimeMillis() - start;
-            LOGGER.info("finished processing index gz in ({}) ms: {}",
-                    String.format(Locale.US, "%,d", elapsed), fetchEmitTuple
-                    .getFetchKey()
-                    .getFetchKey());
+            LOGGER.info(
+                    "finished processing index gz in ({}) ms: {}",
+                    String.format(Locale.US, "%,d", elapsed),
+                    fetchEmitTuple.getFetchKey().getFetchKey());
             return true;
         }
 
-        private boolean processLines(List<String> lines,
-                                     AbstractRecordProcessor recordProcessor) throws InterruptedException {
+        private boolean processLines(List<String> lines, AbstractRecordProcessor recordProcessor)
+                throws InterruptedException {
             for (String line : lines) {
                 try {
                     boolean shouldContinue = recordProcessor.process(line);
@@ -316,37 +322,28 @@ public class CCMimeCounter {
 
         @Override
         public boolean process(String json) throws IOException, InterruptedException {
-            long totalRead = counter
-                    .getRecordsRead()
-                    .incrementAndGet();
+            long totalRead = counter.getRecordsRead().incrementAndGet();
             if (totalRead % 1000000 == 0) {
-                LOGGER.info("processed: {}", String.format(Locale.US,"%,d", totalRead));
+                LOGGER.info("processed: {}", String.format(Locale.US, "%,d", totalRead));
             }
             if (fetcherConfig.getMaxRecords() > -1 && totalRead >= fetcherConfig.getMaxRecords()) {
                 LOGGER.info("hit max read");
                 return false;
             }
-            //check for hit max
-            //return false;
-
             Optional<CCIndexRecord> record = CCIndexRecord.parseRecord(json);
             if (record.isEmpty()) {
-                //problem already logged
+                // problem already logged
                 return true;
             }
             CCIndexRecord r = record.get();
-            if (!fetcherConfig
-                    .getRecordSelector()
-                    .select(r)) {
+            if (!fetcherConfig.getRecordSelector().select(r)) {
                 return true;
             }
             increment(totalCounts, r.getNormalizedMimeDetected());
             if (!StringUtils.isBlank(r.getTruncated())) {
-                long truncated = counter
-                        .getTruncated()
-                        .incrementAndGet();
-                if (fetcherConfig.getMaxFilesTruncated() > -1 &&
-                        truncated >= fetcherConfig.getMaxFilesTruncated()) {
+                long truncated = counter.getTruncated().incrementAndGet();
+                if (fetcherConfig.getMaxFilesTruncated() > -1
+                        && truncated >= fetcherConfig.getMaxFilesTruncated()) {
                     LOGGER.info("hit max truncated files");
                     return false;
                 }
@@ -368,8 +365,6 @@ public class CCMimeCounter {
         }
 
         @Override
-        public void close() throws IOException {
-
-        }
+        public void close() throws IOException {}
     }
 }

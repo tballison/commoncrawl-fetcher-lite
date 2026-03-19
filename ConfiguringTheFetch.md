@@ -116,6 +116,28 @@ these over https from: `https://data.commoncrawl.org/`.
 }
 ```
 
+### Skipping and Limiting Index Files
+The `skipIndexFiles` and `maxIndexFiles` options control which index files are processed
+from the resolved list. This is useful for resuming after a crash or for processing
+a subset of a crawl's index files.
+
+For example, if a run crashed while processing index file 157, you can resume from
+where you left off:
+```json
+{
+  "indices": {
+    "paths": [
+      "crawl-data/CC-MAIN-2023-06/cc-index.paths.gz"
+    ],
+    "skipIndexFiles": 157,
+    "maxIndexFiles": 50
+  }
+}
+```
+This skips the first 157 index files and processes the next 50. Omit `maxIndexFiles`
+(or set to `-1`) to process all remaining files. Already-extracted files on disk are
+automatically skipped, so only the index scanning work is saved.
+
 ### Index Lists on a Local File System
 If the index path lists are on a local file share, they must include a `basePath`
 element:
@@ -173,6 +195,31 @@ and it must contain a `profile` element:
 {
   "fetcher": {
     "profile": "my-s3-cc-profile"
+  }
+}
+```
+
+## IndexFetcher
+The `indexFetcher` element (optional) configures how index files (`cdx-*.gz`) are
+fetched. This is separate from the `fetcher` element, which controls how WARC files
+are fetched. If `indexFetcher` is not specified, index files are fetched over HTTPS
+from `https://data.commoncrawl.org/` with the default throttle seconds.
+
+The structure is identical to the `fetcher` element. For example, to fetch index
+files from S3:
+```json
+{
+  "indexFetcher": {
+    "profile": "my-s3-cc-profile"
+  }
+}
+```
+
+Or to customize throttle seconds for HTTPS fetching of index files:
+```json
+{
+  "indexFetcher": {
+    "throttleSeconds": [10, 60, 300]
   }
 }
 ```

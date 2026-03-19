@@ -19,9 +19,7 @@ package org.tallison.cc.index.selector;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-/**
- * match exact string
- */
+/** match exact string */
 public class MatchSelector extends AbstractSamplingSelector {
 
     private static final boolean DEFAULT_CASE_SENSITIVE = true;
@@ -29,8 +27,10 @@ public class MatchSelector extends AbstractSamplingSelector {
     final String match;
 
     @JsonCreator
-    MatchSelector(@JsonProperty("match") String match, @JsonProperty("sample") Double sample,
-                  @JsonProperty("case_sensitive") Boolean caseSensitive) {
+    MatchSelector(
+            @JsonProperty("match") String match,
+            @JsonProperty("sample") Double sample,
+            @JsonProperty("case_sensitive") Boolean caseSensitive) {
         super(sample == null ? new SampleAll() : new SampleSome(sample));
         this.match = match;
         this.caseSensitive = caseSensitive == null ? DEFAULT_CASE_SENSITIVE : caseSensitive;
@@ -38,14 +38,14 @@ public class MatchSelector extends AbstractSamplingSelector {
 
     @Override
     public boolean select(String val) {
+        boolean matched;
         if (caseSensitive) {
-            if (match.equals(val)) {
-                return true;
-            }
+            matched = match.equals(val);
         } else {
-            if (match.equalsIgnoreCase(val)) {
-                return true;
-            }
+            matched = match.equalsIgnoreCase(val);
+        }
+        if (matched) {
+            return sampler.select(val);
         }
         return false;
     }

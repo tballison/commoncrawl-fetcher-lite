@@ -16,11 +16,12 @@
  */
 package org.tallison.cc.index.extractor;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import java.nio.file.Path;
 import java.util.Collections;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import org.tallison.cc.index.IndexIterator;
 import org.tallison.cc.index.io.BackoffHttpFetcher;
 import org.tallison.cc.index.io.TargetPathRewriter;
@@ -46,14 +47,14 @@ public class ExtractorConfig {
 
     public static String DEFAULT_FS_DOCS_PATH = "docs";
 
-    public static long[] DEFAULT_THROTTLE_SECONDS = new long[]{30, 120, 600, 1800};
+    public static long[] DEFAULT_THROTTLE_SECONDS = new long[] {30, 120, 600, 1800};
     private int numThreads = 2;
-    //maximum records to read
+    // maximum records to read
     private long maxRecords = -1;
 
-    //maximum files extracted from cc
+    // maximum files extracted from cc
     private long maxFilesExtracted = -1;
-    //maximum files written to 'truncated' logger
+    // maximum files written to 'truncated' logger
     private long maxFilesTruncated = -1;
 
     private Path indexPathsFile;
@@ -72,7 +73,7 @@ public class ExtractorConfig {
     private FetchConfig fetchConfig;
 
     @JsonProperty("indexFetcher")
-    private FetchConfig indexFetchConfig;
+    private FetchConfig indexFileFetchConfig;
 
     @JsonProperty("docs")
     private EmitConfig emitConfig;
@@ -121,7 +122,6 @@ public class ExtractorConfig {
         this.indexPathsFile = indexPathsFile;
     }
 
-
     public boolean isDryRun() {
         return dryRun;
     }
@@ -161,11 +161,11 @@ public class ExtractorConfig {
         return fetchConfig.newFetcher();
     }
 
-    public Fetcher newIndexFetcher() throws TikaConfigException {
-        if (indexFetchConfig == null) {
-            indexFetchConfig = new FetchConfig(null, DEFAULT_THROTTLE_SECONDS, null);
+    public Fetcher newIndexFileFetcher() throws TikaConfigException {
+        if (indexFileFetchConfig == null) {
+            indexFileFetchConfig = new FetchConfig(null, DEFAULT_THROTTLE_SECONDS, null);
         }
-        return indexFetchConfig.newFetcher();
+        return indexFileFetchConfig.newFetcher();
     }
 
     public StreamEmitter newEmitter() throws TikaConfigException {
@@ -189,9 +189,10 @@ public class ExtractorConfig {
         private final String basePath;
 
         @JsonCreator
-        public FetchConfig(@JsonProperty("profile") String profile,
-                           @JsonProperty("throttleSeconds") long[] throttleSeconds,
-                           @JsonProperty("basePath") String basePath) {
+        public FetchConfig(
+                @JsonProperty("profile") String profile,
+                @JsonProperty("throttleSeconds") long[] throttleSeconds,
+                @JsonProperty("basePath") String basePath) {
             this.profile = profile;
             this.throttleSeconds =
                     (throttleSeconds == null) ? DEFAULT_THROTTLE_SECONDS : throttleSeconds;
@@ -231,14 +232,15 @@ public class ExtractorConfig {
             this.path = path;
         }
 
-        //TODO -- clean this up with different classes
-        //for the different fetchers and use jackson's inference
+        // TODO -- clean this up with different classes
+        // for the different fetchers and use jackson's inference
         @JsonCreator
-        public EmitConfig(@JsonProperty("profile") String profile,
-                          @JsonProperty("region") String region,
-                          @JsonProperty("bucket") String bucket,
-                          @JsonProperty("prefix") String prefix,
-                          @JsonProperty("path") String path) {
+        public EmitConfig(
+                @JsonProperty("profile") String profile,
+                @JsonProperty("region") String region,
+                @JsonProperty("bucket") String bucket,
+                @JsonProperty("prefix") String prefix,
+                @JsonProperty("path") String path) {
             this.profile = profile;
             this.region = region;
             this.bucket = bucket;

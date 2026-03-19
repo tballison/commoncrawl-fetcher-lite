@@ -131,13 +131,7 @@
     <module name="EmptyCatchBlock">
       <property name="exceptionVariableName" value="expected|ignore"/>
     </module>
-    <module name="CustomImportOrder">
-      <property name="sortImportsInGroupAlphabetically" value="true"/>
-      <property name="separateLineBetweenGroups" value="true"/>
-      <property name="specialImportsRegExp" value="apache\.tika\."/>
-      <property name="customImportOrderRules"
-                value="STATIC###STANDARD_JAVA_PACKAGE###THIRD_PARTY_PACKAGE###SPECIAL_IMPORTS"/>
-    </module>
+    <!-- Import ordering is managed by spotless-maven-plugin (google-java-format AOSP) -->
     <module name="EqualsHashCode"/>
     <module name="ArrayTypeStyle"/>
   </module>

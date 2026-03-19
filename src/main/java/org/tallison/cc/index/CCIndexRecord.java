@@ -16,6 +16,13 @@
  */
 package org.tallison.cc.index;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.PropertyNamingStrategies;
+import com.fasterxml.jackson.databind.annotation.JsonNaming;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -27,13 +34,6 @@ import java.util.Locale;
 import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.PropertyNamingStrategies;
-import com.fasterxml.jackson.databind.annotation.JsonNaming;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 @JsonNaming(PropertyNamingStrategies.KebabCaseStrategy.class)
 public class CCIndexRecord {
@@ -88,7 +88,7 @@ public class CCIndexRecord {
             if (i > -1 && i + 1 < host.length()) {
                 tld = host.substring(i + 1);
             } else {
-                //bad host...or do we want to handle xyz.com. ?
+                // bad host...or do we want to handle xyz.com. ?
                 return tld;
             }
             if (intMatcher.reset(tld).find()) {
@@ -97,7 +97,7 @@ public class CCIndexRecord {
             return tld;
 
         } catch (URISyntaxException e) {
-            //swallow
+            // swallow
         }
         return "";
     }
@@ -132,8 +132,8 @@ public class CCIndexRecord {
             return Optional.empty();
         }
         Collections.reverse(ends);
-        //now try to parse the string ending it at each end
-        //start with the max
+        // now try to parse the string ending it at each end
+        // start with the max
         for (int thisEnd : ends) {
             String json = jsonPart.substring(0, thisEnd + 1);
             try {
@@ -144,7 +144,6 @@ public class CCIndexRecord {
         }
         LOGGER.warn("bad record, giving up: {}", jsonPart);
         return Optional.empty();
-
     }
 
     public String getUrl() {
@@ -254,10 +253,40 @@ public class CCIndexRecord {
 
     @Override
     public String toString() {
-        return "CCIndexRecord{" + "url='" + url + '\'' + ", mime='" + mime + '\'' +
-                ", mimeDetected='" + mimeDetected + '\'' + ", status=" + status + ", digest='" +
-                digest + '\'' + ", length=" + length + ", offset=" + offset + ", filename='" +
-                filename + '\'' + ", charset='" + charset + '\'' + ", languages='" + languages +
-                '\'' + ", truncated='" + truncated + '\'' + ", redirect='" + redirect + '\'' + '}';
+        return "CCIndexRecord{"
+                + "url='"
+                + url
+                + '\''
+                + ", mime='"
+                + mime
+                + '\''
+                + ", mimeDetected='"
+                + mimeDetected
+                + '\''
+                + ", status="
+                + status
+                + ", digest='"
+                + digest
+                + '\''
+                + ", length="
+                + length
+                + ", offset="
+                + offset
+                + ", filename='"
+                + filename
+                + '\''
+                + ", charset='"
+                + charset
+                + '\''
+                + ", languages='"
+                + languages
+                + '\''
+                + ", truncated='"
+                + truncated
+                + '\''
+                + ", redirect='"
+                + redirect
+                + '\''
+                + '}';
     }
 }

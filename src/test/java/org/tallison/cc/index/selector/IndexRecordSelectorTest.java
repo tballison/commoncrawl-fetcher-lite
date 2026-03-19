@@ -16,6 +16,10 @@
  */
 package org.tallison.cc.index.selector;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
+
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
@@ -25,9 +29,6 @@ import java.nio.file.Paths;
 import java.util.Optional;
 import java.util.zip.GZIPInputStream;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import org.junit.jupiter.api.Disabled;
-import org.junit.jupiter.api.Test;
 import org.tallison.cc.index.CCIndexRecord;
 
 public class IndexRecordSelectorTest {
@@ -35,9 +36,10 @@ public class IndexRecordSelectorTest {
     @Test
     public void testBasic() throws Exception {
         ObjectMapper mapper = new ObjectMapper();
-        //this just tests that the deserialization works
+        // this just tests that the deserialization works
         RecordSelector recordSelector =
-                mapper.readValue(getClass().getResourceAsStream("/selectors/basic.json"),
+                mapper.readValue(
+                        getClass().getResourceAsStream("/selectors/basic.json"),
                         RecordSelector.class);
     }
 
@@ -46,13 +48,16 @@ public class IndexRecordSelectorTest {
     public void testIndexFile() throws Exception {
         Path p = Paths.get("/...CC-MAIN-2023-06/indexes/cdx-00000.gz");
         ObjectMapper mapper = new ObjectMapper();
-        //this just tests that the deserialization works
+        // this just tests that the deserialization works
         RecordSelector recordSelector =
-                mapper.readValue(getClass().getResourceAsStream("/selectors/extensions.json"),
+                mapper.readValue(
+                        getClass().getResourceAsStream("/selectors/extensions.json"),
                         RecordSelector.class);
-        try (BufferedReader r = new BufferedReader(
-                new InputStreamReader(new GZIPInputStream(Files.newInputStream(p)),
-                        StandardCharsets.UTF_8))) {
+        try (BufferedReader r =
+                new BufferedReader(
+                        new InputStreamReader(
+                                new GZIPInputStream(Files.newInputStream(p)),
+                                StandardCharsets.UTF_8))) {
             String line = r.readLine();
             while (line != null) {
                 Optional<CCIndexRecord> record = CCIndexRecord.parseRecord(line);
@@ -61,7 +66,7 @@ public class IndexRecordSelectorTest {
                     if (recordSelector.select(indexRecord)) {
                         System.out.println("Selected: " + indexRecord);
                     } else {
-                        //System.out.println("Rejected: " + indexRecord.getUrl());
+                        // System.out.println("Rejected: " + indexRecord.getUrl());
                     }
                 }
                 line = r.readLine();

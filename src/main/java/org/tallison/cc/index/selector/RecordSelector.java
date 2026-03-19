@@ -16,13 +16,14 @@
  */
 package org.tallison.cc.index.selector;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.tallison.cc.index.CCIndexRecord;
 
 public class RecordSelector {
@@ -30,19 +31,16 @@ public class RecordSelector {
     private static Logger LOGGER = LoggerFactory.getLogger(RecordSelector.class);
 
     public static RecordSelector ACCEPT_ALL_RECORDS = new AcceptAllRecords();
-    @JsonProperty
-    Map<String, List<SelectorClause>> must = new HashMap<>();
-    @JsonProperty
-    Map<String, List<SelectorClause>> must_not = new HashMap<>();
-    @JsonProperty
-    Map<String, List<SelectorClause>> should = new HashMap<>();
+    @JsonProperty Map<String, List<SelectorClause>> must = new HashMap<>();
+    @JsonProperty Map<String, List<SelectorClause>> must_not = new HashMap<>();
+    @JsonProperty Map<String, List<SelectorClause>> should = new HashMap<>();
 
     public boolean select(CCIndexRecord record) {
 
         for (Map.Entry<String, List<SelectorClause>> e : must_not.entrySet()) {
             String val = getStringValue(e.getKey(), record);
             if (val == null) {
-                LOGGER.warn("Value is null for '{}' in the must not clause", e.getKey());
+                LOGGER.debug("Value is null for '{}' in the must not clause", e.getKey());
                 continue;
             }
             for (SelectorClause clause : e.getValue()) {
@@ -55,7 +53,8 @@ public class RecordSelector {
         for (Map.Entry<String, List<SelectorClause>> e : must.entrySet()) {
             String val = getStringValue(e.getKey(), record);
             if (val == null) {
-                LOGGER.warn("Value is null for '{}' in the must clause. Record not selected.",
+                LOGGER.warn(
+                        "Value is null for '{}' in the must clause. Record not selected.",
                         e.getKey());
                 return false;
             }
@@ -71,7 +70,8 @@ public class RecordSelector {
         for (Map.Entry<String, List<SelectorClause>> e : should.entrySet()) {
             String val = getStringValue(e.getKey(), record);
             if (val == null) {
-                LOGGER.warn("Value is null for '{}' in the should clause. Record not selected",
+                LOGGER.debug(
+                        "Value is null for '{}' in the should clause. Record not selected",
                         e.getKey());
                 continue;
             }
@@ -94,7 +94,7 @@ public class RecordSelector {
             case "mime":
                 return record.getMime();
             case "status":
-                return Integer.toString(record.getStatus());
+                return record.getStatus() == null ? null : Integer.toString(record.getStatus());
             case "url":
                 return record.getUrl();
             case "host":
@@ -112,5 +112,4 @@ public class RecordSelector {
             return true;
         }
     }
-
 }

@@ -16,6 +16,10 @@
  */
 package org.tallison.cc.index.extractor;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -30,9 +34,6 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.tallison.cc.index.IndexIterator;
 
 import org.apache.tika.exception.TikaException;
@@ -46,8 +47,8 @@ import org.apache.tika.pipes.pipesiterator.PipesIterator;
 
 /**
  * This class fetches index files from aws to a local file share.
- * <p>
- * This pulls the index files either via https or s3
+ *
+ * <p>This pulls the index files either via https or s3
  */
 public class CCIndexFetcher {
     private static final Logger LOGGER = LoggerFactory.getLogger(CCIndexFetcher.class);
@@ -59,10 +60,10 @@ public class CCIndexFetcher {
     }
 
     private static void execute(ExtractorConfig fetcherConfig) throws Exception {
-        ArrayBlockingQueue<FetchEmitTuple> indexPathsList = new ArrayBlockingQueue<>(1000);
-        //IndexPathsReader reads a file containing a list of cc-index.paths files
-        //and writes the literal gz files (cc-index/collections/CC-MAIN-2023-06/indexes/cdx-00000.gz)
-        //to indexPathsList
+        ArrayBlockingQueue<FetchEmitTuple> indexFileQueue = new ArrayBlockingQueue<>(1000);
+        // The IndexIterator resolves configured paths (which may be index lists or literal
+        // index file paths) and enqueues individual index file paths (e.g. cdx-00000.gz)
+        // for workers to process.
 
         int totalThreads = fetcherConfig.getNumThreads() + 1;
 
@@ -72,15 +73,15 @@ public class CCIndexFetcher {
 
         IndexIterator indexIterator = fetcherConfig.getIndexIterator();
         indexIterator.initialize(Collections.EMPTY_MAP);
-        executorCompletionService.submit(new CallablePipesIterator(indexIterator, indexPathsList));
+        executorCompletionService.submit(new CallablePipesIterator(indexIterator, indexFileQueue));
         int finishedWorkers = 0;
         try {
             for (int i = 0; i < fetcherConfig.getNumThreads(); i++) {
-                executorCompletionService.submit(new IndexFetcher(fetcherConfig, indexPathsList));
+                executorCompletionService.submit(new IndexFetcher(fetcherConfig, indexFileQueue));
             }
 
             while (finishedWorkers < totalThreads) {
-                //blocking
+                // blocking
                 Future<Long> future = executorCompletionService.take();
                 if (future != null) {
                     Long f = future.get();
@@ -103,12 +104,12 @@ public class CCIndexFetcher {
     private static class IndexFetcher implements Callable<Long> {
 
         private final ExtractorConfig fetcherConfig;
-        private final ArrayBlockingQueue<FetchEmitTuple> indexPathsList;
+        private final ArrayBlockingQueue<FetchEmitTuple> indexFileQueue;
 
-        public IndexFetcher(ExtractorConfig fetcherConfig,
-                            ArrayBlockingQueue<FetchEmitTuple> indexPathsList) {
+        public IndexFetcher(
+                ExtractorConfig fetcherConfig, ArrayBlockingQueue<FetchEmitTuple> indexFileQueue) {
             this.fetcherConfig = fetcherConfig;
-            this.indexPathsList = indexPathsList;
+            this.indexFileQueue = indexFileQueue;
         }
 
         @Override
@@ -116,13 +117,13 @@ public class CCIndexFetcher {
             Fetcher fetcher = fetcherConfig.newFetcher();
             StreamEmitter streamEmitter = fetcherConfig.newEmitter();
             while (true) {
-                FetchEmitTuple t = indexPathsList.poll(120, TimeUnit.MINUTES);
+                FetchEmitTuple t = indexFileQueue.poll(120, TimeUnit.MINUTES);
                 if (t == null) {
                     throw new TimeoutException("waited 120 minutes for a new record");
                 }
 
                 if (t == PipesIterator.COMPLETED_SEMAPHORE) {
-                    indexPathsList.put(PipesIterator.COMPLETED_SEMAPHORE);
+                    indexFileQueue.put(PipesIterator.COMPLETED_SEMAPHORE);
                     LOGGER.info("Index fetcher finished");
                     return 1l;
                 }
@@ -133,8 +134,11 @@ public class CCIndexFetcher {
         private void fetch(FetchEmitTuple t, Fetcher fetcher, StreamEmitter streamEmitter) {
 
             LOGGER.info("about to download: " + t.getFetchKey().getFetchKey());
-            try (InputStream is = fetcher.fetch(t.getFetchKey().getFetchKey(), new Metadata(), new ParseContext())) {
-                streamEmitter.emit(t.getFetchKey().getFetchKey(), is, new Metadata(), new ParseContext());
+            try (InputStream is =
+                    fetcher.fetch(
+                            t.getFetchKey().getFetchKey(), new Metadata(), new ParseContext())) {
+                streamEmitter.emit(
+                        t.getFetchKey().getFetchKey(), is, new Metadata(), new ParseContext());
                 LOGGER.info("successfully downloaded: " + t.getFetchKey().getFetchKey());
             } catch (TikaException | IOException e) {
                 LOGGER.error("failed to copy " + t.getFetchKey().getFetchKey(), e);

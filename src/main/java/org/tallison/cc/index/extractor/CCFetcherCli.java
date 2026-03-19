@@ -20,8 +20,8 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 
 /**
- * This is a lighter class that doesn't rely on a database
- * to extract files from CC and write a list of truncated urls.
+ * This is a lighter class that doesn't rely on a database to extract files from CC and write a list
+ * of truncated urls.
  */
 public class CCFetcherCli {
 
@@ -29,13 +29,13 @@ public class CCFetcherCli {
         String command = args[0];
 
         if (command.equals("Fetch")) {
-            CCFileExtractor.main(new String[]{args[1]});
+            CCFileExtractor.main(new String[] {args[1]});
         } else if (command.equals("FetchIndices")) {
-            CCIndexFetcher.main(new String[]{args[1]});
+            CCIndexFetcher.main(new String[] {args[1]});
         } else if (command.equals("CountMimes")) {
-            CCMimeCounter.main(new String[]{args[1]});
+            CCMimeCounter.main(new String[] {args[1]});
         } else if (Files.isRegularFile(Paths.get(command))) {
-            CCFileExtractor.main(new String[]{args[0]});
+            CCFileExtractor.main(new String[] {args[0]});
         } else {
             System.out.println("Must start with a command: Fetch, FetchIndices or CountMimes");
         }

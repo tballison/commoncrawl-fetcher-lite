@@ -16,16 +16,6 @@
  */
 package org.tallison.cc.index.extractor;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
-import java.util.Optional;
-import java.util.zip.GZIPInputStream;
-
 import org.apache.commons.codec.binary.Base32;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.io.IOUtils;
@@ -36,6 +26,17 @@ import org.netpreserve.jwarc.WarcRecord;
 import org.netpreserve.jwarc.WarcResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import java.util.Optional;
+import java.util.zip.GZIPInputStream;
+
 import org.tallison.cc.index.CCIndexReaderCounter;
 import org.tallison.cc.index.CCIndexRecord;
 import org.tallison.cc.index.io.TargetPathRewriter;
@@ -52,8 +53,7 @@ import org.apache.tika.pipes.fetcher.FetchKey;
 import org.apache.tika.pipes.fetcher.RangeFetcher;
 
 public class FileFromCCWarcExtractor {
-    private static Logger LOGGER =
-            LoggerFactory.getLogger(FileFromCCWarcExtractor.class);
+    private static Logger LOGGER = LoggerFactory.getLogger(FileFromCCWarcExtractor.class);
     private static Logger EXTRACTED_LOGGER = LoggerFactory.getLogger("extracted-urls");
     private static Logger EXTRACTED_ALL_LOGGER = LoggerFactory.getLogger("extracted-urls-all");
     private final StreamEmitter emitter;
@@ -64,8 +64,10 @@ public class FileFromCCWarcExtractor {
     private Base32 base32 = new Base32();
 
     private final CCIndexReaderCounter ccIndexReaderCounter;
-    public FileFromCCWarcExtractor(ExtractorConfig fetcherConfig,
-                                   CCIndexReaderCounter ccIndexReaderCounter) throws TikaConfigException {
+
+    public FileFromCCWarcExtractor(
+            ExtractorConfig fetcherConfig, CCIndexReaderCounter ccIndexReaderCounter)
+            throws TikaConfigException {
         this.emitter = fetcherConfig.newEmitter();
         this.fetcher = (RangeFetcher) fetcherConfig.newFetcher();
         this.targetPathRewriter = fetcherConfig.getTargetPathRewriter();
@@ -75,11 +77,20 @@ public class FileFromCCWarcExtractor {
 
     public void fetchToPath(CCIndexRecord record) throws InterruptedException {
 
-        LOGGER.debug("going to fetch {} {}->{}", record.getFilename(), record.getOffset(),
+        LOGGER.debug(
+                "going to fetch {} {}->{}",
+                record.getFilename(),
+                record.getOffset(),
                 record.getLength());
-        FetchEmitTuple t = new FetchEmitTuple(record.getFilename(),
-                new FetchKey("", record.getFilename(), record.getOffset(),
-                        record.getOffset() + record.getLength() - 1), new EmitKey());
+        FetchEmitTuple t =
+                new FetchEmitTuple(
+                        record.getFilename(),
+                        new FetchKey(
+                                "",
+                                record.getFilename(),
+                                record.getOffset(),
+                                record.getOffset() + record.getLength() - 1),
+                        new EmitKey());
         byte[] warcRecordGZBytes;
         try {
             warcRecordGZBytes = fetchWarcBytes(t);
@@ -95,11 +106,10 @@ public class FileFromCCWarcExtractor {
         }
     }
 
-
     private void fetchPayload(String id, CCIndexRecord ccIndexRecord, WarcRecord record)
             throws IOException {
-        if (!((record instanceof WarcResponse) &&
-                record.contentType().base().equals(MediaType.HTTP))) {
+        if (!((record instanceof WarcResponse)
+                && record.contentType().base().equals(MediaType.HTTP))) {
             return;
         }
 
@@ -128,10 +138,13 @@ public class FileFromCCWarcExtractor {
                 return;
             }
             if (!base32Sha1.equals(ccIndexRecord.getDigest())) {
-                LOGGER.warn("Bad digest for url={} ccindex={} sha1={}", id,
-                        ccIndexRecord.getDigest(), base32Sha1);
+                LOGGER.warn(
+                        "Bad digest for url={} ccindex={} sha1={}",
+                        id,
+                        ccIndexRecord.getDigest(),
+                        base32Sha1);
             }
-            //TODO: make digest and encoding configurable
+            // TODO: make digest and encoding configurable
             try (InputStream is = Files.newInputStream(tmp)) {
                 targetDigest = DigestUtils.sha256Hex(is);
             } catch (IOException e) {
@@ -162,40 +175,47 @@ public class FileFromCCWarcExtractor {
         }
     }
 
-    private void logSuccess(CCIndexRecord ccIndexRecord, String targetDigest, long length,
-                            String targetPath) {
+    private void logSuccess(
+            CCIndexRecord ccIndexRecord, String targetDigest, long length, String targetPath) {
         if (extractTruncated) {
-            EXTRACTED_ALL_LOGGER.info("", ccIndexRecord.getUrl(),
+            EXTRACTED_ALL_LOGGER.info(
+                    "",
+                    ccIndexRecord.getUrl(),
                     ccIndexRecord.getNormalizedMime(),
                     ccIndexRecord.getNormalizedMimeDetected(),
                     ccIndexRecord.getFilename(),
-                    ccIndexRecord.getOffset(), ccIndexRecord.getLength(),
-                    ccIndexRecord.getTruncated(), targetDigest, length,
+                    ccIndexRecord.getOffset(),
+                    ccIndexRecord.getLength(),
+                    ccIndexRecord.getTruncated(),
+                    targetDigest,
+                    length,
                     targetPath);
         } else {
-            //new ObjectArray ?
-            //url,mime_detected,warc_file,warc_offset,warc_length,sha256,length,path
-            EXTRACTED_LOGGER.info("", ccIndexRecord.getUrl(),
+            // new ObjectArray ?
+            // url,mime_detected,warc_file,warc_offset,warc_length,sha256,length,path
+            EXTRACTED_LOGGER.info(
+                    "",
+                    ccIndexRecord.getUrl(),
                     ccIndexRecord.getNormalizedMime(),
                     ccIndexRecord.getNormalizedMimeDetected(),
                     ccIndexRecord.getFilename(),
-                    ccIndexRecord.getOffset(), ccIndexRecord.getLength(),
-                    targetDigest, length,
+                    ccIndexRecord.getOffset(),
+                    ccIndexRecord.getLength(),
+                    targetDigest,
+                    length,
                     targetPath);
         }
-
-
     }
 
     private void parseWarc(String id, CCIndexRecord ccIndexRecord, byte[] warcRecordGZBytes)
             throws IOException {
-        //need to leave initial inputstream open while parsing warcrecord
-        //can't just parse record and return
+        // need to leave initial inputstream open while parsing warcrecord
+        // can't just parse record and return
         try (InputStream is = new GZIPInputStream(new ByteArrayInputStream(warcRecordGZBytes))) {
             try (WarcReader warcreader = new WarcReader(is)) {
 
-                //should be a single warc per file
-                //return the first
+                // should be a single warc per file
+                // return the first
                 for (WarcRecord warcRecord : warcreader) {
                     fetchPayload(id, ccIndexRecord, warcRecord);
                     return;
@@ -209,11 +229,11 @@ public class FileFromCCWarcExtractor {
 
         ByteArrayOutputStream bos = new ByteArrayOutputStream();
         FetchKey k = t.getFetchKey();
-        try (InputStream is = fetcher.fetch(k.getFetchKey(), k.getRangeStart(), k.getRangeEnd(),
-                new Metadata())) {
+        try (InputStream is =
+                fetcher.fetch(
+                        k.getFetchKey(), k.getRangeStart(), k.getRangeEnd(), new Metadata())) {
             IOUtils.copy(is, bos);
         }
         return bos.toByteArray();
     }
-
 }

@@ -42,8 +42,15 @@ public class CCIndexReaderCounter {
 
     @Override
     public String toString() {
-        return "CCIndexReaderCounter{" + "recordsRead=" + recordsRead + ", filesExtracted=" +
-                filesExtracted + ", truncated=" + truncated + ", emptyPayload=" + emptyPayload +
-                '}';
+        return "CCIndexReaderCounter{"
+                + "recordsRead="
+                + recordsRead
+                + ", filesExtracted="
+                + filesExtracted
+                + ", truncated="
+                + truncated
+                + ", emptyPayload="
+                + emptyPayload
+                + '}';
     }
 }

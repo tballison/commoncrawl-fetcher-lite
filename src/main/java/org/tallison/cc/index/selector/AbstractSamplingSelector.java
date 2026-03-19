@@ -26,9 +26,7 @@ public abstract class AbstractSamplingSelector implements SelectorClause {
         this.sampler = sampler;
     }
 
-    interface Sampler extends SelectorClause {
-
-    }
+    interface Sampler extends SelectorClause {}
 
     static class SampleAll implements Sampler {
         @Override

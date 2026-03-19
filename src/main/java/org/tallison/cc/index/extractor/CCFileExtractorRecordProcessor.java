@@ -16,12 +16,13 @@
  */
 package org.tallison.cc.index.extractor;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.util.Locale;
 import java.util.Optional;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.tallison.cc.index.AbstractRecordProcessor;
 import org.tallison.cc.index.CCIndexReaderCounter;
 import org.tallison.cc.index.CCIndexRecord;
@@ -41,47 +42,40 @@ public class CCFileExtractorRecordProcessor extends AbstractRecordProcessor {
 
     private final FileFromCCWarcExtractor fileFromCCWarcFetcher;
 
-    private long reportEvery = 100000;
+    private static final long REPORT_EVERY = 1_000_000;
 
-    public CCFileExtractorRecordProcessor(ExtractorConfig fetcherConfig, CCIndexReaderCounter counter)
+    public CCFileExtractorRecordProcessor(
+            ExtractorConfig fetcherConfig, CCIndexReaderCounter counter)
             throws TikaConfigException, IOException {
         this.fetcherConfig = fetcherConfig;
         this.counter = counter;
         this.fileFromCCWarcFetcher = new FileFromCCWarcExtractor(fetcherConfig, counter);
-        //completely arbitrary
-        if (fetcherConfig.getNumThreads() > 10) {
-            reportEvery = 1000000;
-        }
     }
 
     @Override
     public boolean process(String json) throws IOException, InterruptedException {
-        //System.out.println("JSON: " + json);
         long totalRead = counter.getRecordsRead().incrementAndGet();
-        if (totalRead % reportEvery == 0) {
-            LOGGER.info("processed: {}", String.format(Locale.US,"%,d", totalRead));
+        if (totalRead % REPORT_EVERY == 0) {
+            LOGGER.info("processed: {}", String.format(Locale.US, "%,d", totalRead));
         }
         if (fetcherConfig.getMaxRecords() > -1 && totalRead >= fetcherConfig.getMaxRecords()) {
             LOGGER.info("hit max read");
             return false;
         }
-        //check for hit max
-        //return false;
-
         Optional<CCIndexRecord> record = CCIndexRecord.parseRecord(json);
         if (record.isEmpty()) {
-            //problem already logged
+            // problem already logged
             return true;
         }
         CCIndexRecord r = record.get();
         if (!fetcherConfig.getRecordSelector().select(r)) {
             return true;
         }
-        //if truncated, count appropriately and test for limits
+        // if truncated, count appropriately and test for limits
         if (!StringUtils.isBlank(r.getTruncated())) {
             long truncated = counter.getTruncated().incrementAndGet();
-            if (fetcherConfig.getMaxFilesTruncated() > -1 &&
-                    truncated >= fetcherConfig.getMaxFilesTruncated()) {
+            if (fetcherConfig.getMaxFilesTruncated() > -1
+                    && truncated >= fetcherConfig.getMaxFilesTruncated()) {
                 LOGGER.info("hit max truncated files");
                 return false;
             }
@@ -89,8 +83,8 @@ public class CCFileExtractorRecordProcessor extends AbstractRecordProcessor {
 
         if (fetcherConfig.isExtractTruncated() || StringUtils.isBlank(r.getTruncated())) {
             long extracted = counter.getFilesExtracted().incrementAndGet();
-            if (fetcherConfig.getMaxFilesExtracted() > -1 &&
-                    extracted >= fetcherConfig.getMaxFilesExtracted()) {
+            if (fetcherConfig.getMaxFilesExtracted() > -1
+                    && extracted >= fetcherConfig.getMaxFilesExtracted()) {
                 LOGGER.info("hit max extracted files");
                 return false;
             }
@@ -103,10 +97,16 @@ public class CCFileExtractorRecordProcessor extends AbstractRecordProcessor {
         } else {
             String url = r.getUrl();
             TRUNCATED_URLS_LOGGER.info("", url);
-            //url,mime,mime_detected,warc_file,warc_offset,warc_length,truncated
-            TRUNCATED_URLS_FULL_LOGGER.info("", url,
-                    r.getNormalizedMime(), r.getNormalizedMimeDetected(), r.getFilename(),
-                    r.getOffset(), r.getLength(), r.getTruncated());
+            // url,mime,mime_detected,warc_file,warc_offset,warc_length,truncated
+            TRUNCATED_URLS_FULL_LOGGER.info(
+                    "",
+                    url,
+                    r.getNormalizedMime(),
+                    r.getNormalizedMimeDetected(),
+                    r.getFilename(),
+                    r.getOffset(),
+                    r.getLength(),
+                    r.getTruncated());
             return true;
         }
     }
@@ -116,7 +116,5 @@ public class CCFileExtractorRecordProcessor extends AbstractRecordProcessor {
     }
 
     @Override
-    public void close() throws IOException {
-
-    }
+    public void close() throws IOException {}
 }
