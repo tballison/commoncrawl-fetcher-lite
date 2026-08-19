@@ -1,0 +1,44 @@
+{
+  "dryRun": false,
+  "fetcher": {
+    "throttleSeconds": [30, 60, 120, 240, 480, 600, 900, 1800]
+  },
+  "indices": {
+    "paths": [
+      "crawl-data/CC-MAIN-2025-08/cc-index.paths.gz"
+    ]
+  },
+  "docs": {
+    "path": "docs/spreadsheets"
+  },
+  "maxFilesExtracted": 10000,
+  "maxFilesTruncated": -1,
+  "maxRecords": -1,
+  "numThreads": 2,
+  "recordSelector": {
+    "must": {
+      "status": [
+        {
+          "match": "200"
+        }
+      ]
+    },
+    "should": {
+      "mime_detected": [
+        {
+          "match": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        },
+        {
+          "match": "application/vnd.ms-excel.sheet.macroEnabled.12"
+        },
+        {
+          "match": "application/vnd.ms-excel"
+        },
+        {
+          "match": "application/vnd.oasis.opendocument.spreadsheet"
+        }
+      ]
+    }
+  },
+  "targetPathPattern": "xx/xx/xxx"
+}

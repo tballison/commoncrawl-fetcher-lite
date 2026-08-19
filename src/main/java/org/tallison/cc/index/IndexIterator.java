@@ -175,6 +175,13 @@ public class IndexIterator extends PipesIterator implements Initializable {
         }
     }
 
+    /**
+     * Returns the number of resolved index files after initialization.
+     */
+    public int getResolvedIndexFileCount() {
+        return resolvedIndexFiles.size();
+    }
+
     private void loadLocalFiles(Fetcher fetcher) throws IOException {
         if (fetcher instanceof FileSystemFetcher) {
             Path basePath = ((FileSystemFetcher) fetcher).getBasePath();

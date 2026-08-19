@@ -1,0 +1,497 @@
+// Licensed to the Apache Software Foundation (ASF) under one or more
+// contributor license agreements.  See the NOTICE file distributed with
+// this work for additional information regarding copyright ownership.
+// The ASF licenses this file to You under the Apache License, Version 2.0
+// (the "License"); you may not use this file except in compliance with
+// the License.  You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+= Configuring the Fetch
+:toc: left
+:toclevels: 3
+
+We include a minimal config file in the xref:index.adoc[overview].
+
+A full config file would include:
+
+[source,json]
+----
+{
+  "dryRun": true,
+  "extractTruncated": false,
+  "fetcher": {
+    "throttleSeconds": [ 30, 120, 600, 1800]
+  },
+  "indices" : {
+    "paths": [
+      "crawl-data/CC-MAIN-2025-08/cc-index.paths.gz",
+      "crawl-data/CC-MAIN-2024-51/cc-index.paths.gz"
+    ]
+  },
+  "docs": {
+    "path": "docs"
+  },
+  "maxFilesExtracted": 10000,
+  "maxFilesTruncated": -1,
+  "maxRecords": -1,
+  "numThreads": 3,
+  "recordSelector": {
+    "must": {
+      "status": [
+        { "match": "200" }
+      ]
+    },
+    "must_not": {
+      "truncated": [
+        { "pattern": ".+" }
+      ]
+    },
+    "should": {
+      "mime_detected": [
+        { "case_sensitive": false, "match": "video/mp4", "sample": 0.8 }
+      ]
+    }
+  },
+  "targetPathPattern": "xx/xx/xxx"
+}
+----
+
+NOTE: The `must_not` example above excludes truncated files from selection entirely.
+A `must` of status `200` combined with a `must_not` of status `300` would be redundant.
+
+== DryRun
+
+If set to `true`, this processes all the records but does not extract the non-truncated
+files. This can be useful for counting files.
+
+== ExtractTruncated
+
+If set to `true`, this will extract the raw bytes from both truncated and non-truncated
+records. This does *NOT* refetch the files from the original URLs; the extracted bytes will
+contain truncated data. When this is set to `true`, the log file will have an extra column
+for `truncated` and be named `logs/<runLabel>/extracted-urls-all.csv`. The default is `false`.
+
+== MaxRecords, MaxFilesExtracted, MaxFilesTruncated
+
+If these are set to `-1`, or they are not included, the fetcher will run against every
+index record. A full run for a single month's crawl downloads nearly ~300GB of index files.
+
+If any one of the following is hit, the fetcher stops:
+
+1. `maxRecords` sets a maximum on the records considered for processing, whether or not
+   the file selector has selected a record for processing.
+2. `maxFilesExtracted` sets a maximum on the non-truncated records that are extracted from
+   the Common Crawl data set.
+3. `maxFilesTruncated` sets a maximum on the URLs written to `logs/<runLabel>/urls-truncated.csv`
+   (see xref:#_logging[Logging] for `runLabel`).
+
+== Indices
+
+The `indices` element is required. The `paths` element inside the `indices` element may
+contain paths to index files (e.g. `.../cdx-00273.gz`) or paths to index lists
+(e.g. `crawl-data/CC-MAIN-2025-08/cc-index.paths.gz`).
+
+An example of paths to specific index files:
+
+[source,json]
+----
+{
+  "indices" : {
+    "paths": [
+      "cc-index/collections/CC-MAIN-2025-08/indexes/cdx-00273.gz",
+      "cc-index/collections/CC-MAIN-2025-08/indexes/cdx-00274.gz",
+      "cc-index/collections/CC-MAIN-2025-08/indexes/cdx-00275.gz",
+      "cc-index/collections/CC-MAIN-2025-08/indexes/cdx-00276.gz"
+    ]
+  }
+}
+----
+
+An example of paths to lists of index files from specific crawls follows. If there is no
+`basePath` or `profile` element, the tool will fetch these over HTTPS from
+`https://data.commoncrawl.org/`.
+
+[source,json]
+----
+{
+  "indices": {
+    "paths": [
+      "crawl-data/CC-MAIN-2025-08/cc-index.paths.gz",
+      "crawl-data/CC-MAIN-2024-51/cc-index.paths.gz"
+    ]
+  }
+}
+----
+
+=== Skipping and Limiting Index Files
+
+The `skipIndexFiles` and `maxIndexFiles` options control which index files are processed
+from the resolved list. This is useful for resuming after a crash or for processing a
+subset of a crawl's index files.
+
+For example, if a run crashed while processing index file 157, you can resume from where
+you left off:
+
+[source,json]
+----
+{
+  "indices": {
+    "paths": [
+      "crawl-data/CC-MAIN-2025-08/cc-index.paths.gz"
+    ],
+    "skipIndexFiles": 157,
+    "maxIndexFiles": 50
+  }
+}
+----
+
+This skips the first 157 index files and processes the next 50. Omit `maxIndexFiles` (or
+set to `-1`) to process all remaining files. Already-extracted files on disk are
+automatically skipped, so only the index scanning work is saved.
+
+=== Index Lists on a Local File System
+
+If the index path lists are on a local file share, they must include a `basePath` element:
+
+[source,json]
+----
+{
+  "indices": {
+    "basePath" : "C:/Users/mine/cc/index_paths",
+    "paths": [
+      "crawl-data/CC-MAIN-2025-08/cc-index.paths.gz",
+      "crawl-data/CC-MAIN-2024-51/cc-index.paths.gz"
+    ]
+  }
+}
+----
+
+=== Index Lists on an S3 Bucket
+
+If the index path lists are in S3, they must include a `profile` element:
+
+[source,json]
+----
+{
+  "indices": {
+    "profile" : "my-aws-cc-profile",
+    "paths": [
+      "crawl-data/CC-MAIN-2025-08/cc-index.paths.gz",
+      "crawl-data/CC-MAIN-2024-51/cc-index.paths.gz"
+    ]
+  }
+}
+----
+
+== Fetcher
+
+This is the component that fetches the individual WARC files from the large composite
+`warc.gz` files.
+
+The `fetcher` element is optional. When the element doesn't exist, the individual WARCs
+are fetched over HTTPS from `https://data.commoncrawl.org/` with default throttle seconds:
+`[30, 120, 600, 1800]`. Custom throttle seconds may be specified for the HTTP fetcher:
+
+[source,json]
+----
+{
+  "fetcher": {
+    "throttleSeconds": [30, 120, 600, 1800]
+  }
+}
+----
+
+To fetch the individual WARCs from S3, a fetcher must be defined and it must contain a
+`profile` element:
+
+[source,json]
+----
+{
+  "fetcher": {
+    "profile": "my-s3-cc-profile"
+  }
+}
+----
+
+== IndexFetcher
+
+The `indexFetcher` element (optional) configures how index files (`cdx-*.gz`) are fetched.
+This is separate from the `fetcher` element, which controls how WARC files are fetched. If
+`indexFetcher` is not specified, index files are fetched over HTTPS from
+`https://data.commoncrawl.org/` with the default throttle seconds.
+
+The structure is identical to the `fetcher` element. For example, to fetch index files
+from S3:
+
+[source,json]
+----
+{
+  "indexFetcher": {
+    "profile": "my-s3-cc-profile"
+  }
+}
+----
+
+Or to customize throttle seconds for HTTPS fetching of index files:
+
+[source,json]
+----
+{
+  "indexFetcher": {
+    "throttleSeconds": [10, 60, 300]
+  }
+}
+----
+
+== Docs
+
+The `docs` element (optional) defines where the extracted files will be written. If not
+specified, extracted files will be written to the `docs` subdirectory of the directory
+where the tool is run.
+
+To specify a different output directory on a local drive/fileshare:
+
+[source,json]
+----
+{
+  "docs": {
+    "path": "C:/Users/someone/data/docs"
+  }
+}
+----
+
+To specify an S3 bucket:
+
+[source,json]
+----
+{
+  "docs": {
+    "bucket": "my-bucket",
+    "profile": "my-profile",
+    "region": "us-east-1",
+    "prefix": "some-docs"
+  }
+}
+----
+
+NOTE: `bucket` and `profile` are required. If a region is not specified, `us-east-1` will
+be used.
+
+== TargetPathPattern
+
+By default, extracted files are stored by the BASE64-encoded SHA-256 of the file. For
+users extracting hundreds of thousands of files or more, it will be useful to create
+subdirectories.
+
+[source,json]
+----
+{
+    "targetPathPattern": "xx/xxx"
+}
+----
+
+This would store `e3b0c44298fc1c149afbf4c8996fb924...` as
+`e3/e3b0c44298fc1c149afbf4c8996fb924...`
+
+If you're extracting millions of files, you may want two levels of subdirectories:
+
+[source,json]
+----
+{
+    "targetPathPattern": "xx/xx/xxx"
+}
+----
+
+This would store the file as `e3/b0/e3b0c44298fc1c149afbf4c8996fb924...`
+
+== RecordSelector
+
+The record selector determines whether processing will happen on a URL record. These are
+applied to the index records described in the xref:index.adoc#_background[Background]
+section.
+
+=== MUST, MUST_NOT, SHOULD
+
+The record selector applies the `must_not` matches first (if the element exists). If any
+of those clauses match a record, the record is ignored. If the `must` element exists, the
+record selector requires that all of its clauses are true for a given record. If any of
+the `must` clauses do not apply, the record is ignored. Finally, the record selector
+requires that at least one of the `should` clauses applies to a record.
+
+=== Fields
+
+[cols="1,3"]
+|===
+|Field |Description
+
+|`mime` |HTTP Content-Type header value
+|`mime_detected` |MIME type as detected by Apache Tika (added in `CC-MAIN-2017-22`)
+|`status` |HTTP status code (e.g. `200`)
+|`url` |Full URL
+|`host` |Domain/host
+|`digest` |BASE32-encoded SHA1 digest
+|`truncated` |Non-empty (e.g. `length`) if the file was truncated by Common Crawl
+|===
+
+=== MATCH and PATTERN Clauses
+
+A `match` is an exact full string match. It may have a `case_sensitive` flag that, when
+set to `false`, allows case-insensitive matches -- the default is `true`.
+
+A `pattern` is a regular expression.
+
+Both `match` and `pattern` clauses may include a `sample` element. This means that if
+there is a match or pattern-find on an element, the selector will randomly select a record
+that percentage of the time. For example, if you wanted some XHTML (say ~3,000 from a
+single crawl), but not nearly all of the 3 billion pages, you could use:
+
+[source,json]
+----
+{
+    "should": {
+        "mime_detected": [
+            {
+                "match": "application/xhtml+xml",
+                "sample": 0.000001,
+                "case_sensitive": false
+            }
+        ]
+    }
+}
+----
+
+=== Extensions Clause
+
+An `extensions` clause matches file extensions from URLs (case-insensitive):
+
+[source,json]
+----
+{
+    "should": {
+        "url": [
+            { "extensions": "docx,pptx,xlsx,pdf" }
+        ]
+    }
+}
+----
+
+== Common MIME Types Reference
+
+The `mime_detected` field uses Apache Tika's detection. Here are common MIME types you can
+use in `recordSelector`:
+
+.Document formats
+[cols="1,3"]
+|===
+|Type |MIME type
+
+|PDF |`application/pdf`
+|DOCX |`application/vnd.openxmlformats-officedocument.wordprocessingml.document`
+|DOCM |`application/vnd.ms-word.document.macroEnabled.12`
+|XLSX |`application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`
+|XLSM |`application/vnd.ms-excel.sheet.macroEnabled.12`
+|PPTX |`application/vnd.openxmlformats-officedocument.presentationml.presentation`
+|PPTM |`application/vnd.ms-powerpoint.presentation.macroEnabled.12`
+|DOC |`application/msword`
+|XLS |`application/vnd.ms-excel`
+|PPT |`application/vnd.ms-powerpoint`
+|RTF |`application/rtf`
+|ODT |`application/vnd.oasis.opendocument.text`
+|ODS |`application/vnd.oasis.opendocument.spreadsheet`
+|ODP |`application/vnd.oasis.opendocument.presentation`
+|EPUB |`application/epub+zip`
+|===
+
+.Image formats
+[cols="1,3"]
+|===
+|Type |MIME type
+
+|JPEG |`image/jpeg`
+|PNG |`image/png`
+|GIF |`image/gif`
+|WebP |`image/webp`
+|SVG |`image/svg+xml`
+|TIFF |`image/tiff`
+|BMP |`image/bmp`
+|===
+
+.Audio/Video formats
+[cols="1,3"]
+|===
+|Type |MIME type
+
+|MP4 |`video/mp4`
+|WebM |`video/webm`
+|MOV |`video/quicktime`
+|MP3 |`audio/mpeg`
+|WAV |`audio/wav`
+|OGG |`audio/ogg`
+|===
+
+.Archive and email formats
+[cols="1,3"]
+|===
+|Type |MIME type
+
+|ZIP |`application/zip`
+|GZIP |`application/gzip`
+|7Z |`application/x-7z-compressed`
+|RAR |`application/x-rar-compressed`
+|MSG |`application/vnd.ms-outlook`
+|EML |`message/rfc822`
+|===
+
+.Web and data formats
+[cols="1,3"]
+|===
+|Type |MIME type
+
+|HTML |`text/html`
+|XHTML |`application/xhtml+xml`
+|XML |`application/xml`
+|JSON |`application/json`
+|CSV |`text/csv`
+|===
+
+TIP: Use `CountMimes` to discover what MIME types are present in a crawl. Use `ListCrawls`
+to find available crawls, or run `QuickFetch --help` to see common MIME types inline.
+
+== Logging
+
+Three special loggers write output files, scoped under `logs/<runLabel>/`:
+
+1. `logs/<runLabel>/extracted-urls.csv` -- information about successfully extracted files
+2. `logs/<runLabel>/urls-truncated.csv` -- URLs that were truncated and need to be refetched
+3. `logs/<runLabel>/urls-truncated-full.csv` -- detailed information about truncated URLs
+
+`runLabel` defaults to the last path segment of `docs.path` (or `bucket`/`prefix` for an S3
+`docs` target), so a OneNote run (`docs.path: ".../onenote"`) and a PDF run
+(`docs.path: ".../pdfs"`) each get their own CSVs instead of silently sharing -- and
+overwriting each other's history in -- one global log. Set an explicit `runLabel` in the
+config to override the derived name:
+
+[source,json]
+----
+{
+    "runLabel": "onenote-2026-30"
+}
+----
+
+Runs that resolve to the *same* `runLabel` append to the same CSVs across separate
+invocations (the CSV header is written only once). To modify this behavior, start with
+`src/main/resources/log4j2.xml`. Customize it and specify your custom logging on the
+commandline:
+
+[source,bash]
+----
+java -Dlog4j.configurationFile=path/to/custom-log4j2.xml \
+    -jar commoncrawl-fetcher-lite-X.Y.Z.jar config.json
+----

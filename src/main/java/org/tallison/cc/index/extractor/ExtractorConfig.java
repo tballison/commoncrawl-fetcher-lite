@@ -17,6 +17,7 @@
 package org.tallison.cc.index.extractor;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.nio.file.Path;
@@ -37,6 +38,10 @@ import org.apache.tika.pipes.fetcher.fs.FileSystemFetcher;
 import org.apache.tika.pipes.fetcher.s3.S3Fetcher;
 import org.apache.tika.utils.StringUtils;
 
+// Tolerate unknown top-level fields -- config files across this repo use a "_comment" key
+// as a documentation convention (JSON has no native comment syntax), and this class
+// shouldn't crash on that or on future fields it doesn't yet know about.
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class ExtractorConfig {
 
     public static String CC_HTTPS_BASE = "https://data.commoncrawl.org";
@@ -64,6 +69,11 @@ public class ExtractorConfig {
 
     private boolean extractTruncated = false;
 
+    // Not read by this class -- resolved and primed into a system property before this config
+    // is parsed, so that log4j2.xml can scope this run's CSV logs to their own subdirectory.
+    // See RunLabel. Declared here only so Jackson doesn't reject the JSON key.
+    private String runLabel;
+
     private RecordSelector recordSelector = RecordSelector.ACCEPT_ALL_RECORDS;
 
     @JsonProperty("indices")
@@ -77,6 +87,9 @@ public class ExtractorConfig {
 
     @JsonProperty("docs")
     private EmitConfig emitConfig;
+
+    @JsonProperty("columnarIndex")
+    private ColumnarIndexConfig columnarIndexConfig;
 
     public static String getCcHttpsBase() {
         return CC_HTTPS_BASE;
@@ -183,6 +196,63 @@ public class ExtractorConfig {
         return extractTruncated;
     }
 
+    public String getRunLabel() {
+        return runLabel;
+    }
+
+    public void setRunLabel(String runLabel) {
+        this.runLabel = runLabel;
+    }
+
+    public ColumnarIndexConfig getColumnarIndexConfig() {
+        return columnarIndexConfig;
+    }
+
+    /**
+     * Config for {@link CCColumnarIndexExtractor} (the "QueryIndex" command) -- queries
+     * Common Crawl's columnar (Parquet) index at
+     * s3://commoncrawl/cc-index/table/cc-main/warc/crawl=&lt;crawlGlob&gt;/subset=&lt;subset&gt;/
+     * instead of scanning the raw CDX index shard-by-shard. See docs/columnar-index.adoc.
+     */
+    public static class ColumnarIndexConfig {
+        private final String crawlGlob;
+        private final String subset;
+        private final String where;
+
+        @JsonCreator
+        public ColumnarIndexConfig(
+                @JsonProperty("crawlGlob") String crawlGlob,
+                @JsonProperty("subset") String subset,
+                @JsonProperty("where") String where) {
+            if (StringUtils.isBlank(crawlGlob)) {
+                throw new IllegalArgumentException("columnarIndex.crawlGlob is required");
+            }
+            if (StringUtils.isBlank(where)) {
+                throw new IllegalArgumentException("columnarIndex.where is required");
+            }
+            this.crawlGlob = crawlGlob;
+            this.subset = StringUtils.isBlank(subset) ? "warc" : subset;
+            this.where = where;
+        }
+
+        public String getCrawlGlob() {
+            return crawlGlob;
+        }
+
+        public String getSubset() {
+            return subset;
+        }
+
+        public String getWhere() {
+            return where;
+        }
+
+        public String getParquetGlobPath() {
+            return "s3://" + CC_S3_BUCKET + "/cc-index/table/cc-main/warc/crawl=" + crawlGlob
+                    + "/subset=" + subset + "/*.parquet";
+        }
+    }
+
     private static class FetchConfig {
         private final String profile;
         private final long[] throttleSeconds;
@@ -272,6 +342,16 @@ public class ExtractorConfig {
             }
             if (StringUtils.isBlank(path)) {
                 path = DEFAULT_FS_DOCS_PATH;
+            }
+            // Auto-create output directory if it doesn't exist
+            java.nio.file.Path outputPath = java.nio.file.Paths.get(path);
+            if (!java.nio.file.Files.exists(outputPath)) {
+                try {
+                    java.nio.file.Files.createDirectories(outputPath);
+                } catch (java.io.IOException e) {
+                    throw new TikaConfigException(
+                            "Could not create output directory: " + path, e);
+                }
             }
             FileSystemEmitter emitter = new FileSystemEmitter();
             emitter.setBasePath(path);

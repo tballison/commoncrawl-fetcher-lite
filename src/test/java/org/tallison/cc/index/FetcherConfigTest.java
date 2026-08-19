@@ -55,6 +55,18 @@ public class FetcherConfigTest {
     }
 
     @Test
+    public void testTolerantOfCommentAndUnknownFields() throws Exception {
+        // "_comment" is a documentation convention used throughout this repo's example
+        // configs (JSON has no native comment syntax); an unrecognized future field
+        // shouldn't break parsing either.
+        String json =
+                "{\"_comment\": \"a note to self\", \"someFutureField\": 42, "
+                        + "\"docs\": {\"path\": \"docs\"}}";
+        ExtractorConfig fetcherConfig = new ObjectMapper().readValue(json, ExtractorConfig.class);
+        assertEquals(FileSystemEmitter.class, fetcherConfig.newEmitter().getClass());
+    }
+
+    @Test
     public void testS3() throws Exception {
         Path p = Paths.get(getClass().getResource("/configs/basic-s3.json").toURI());
         ExtractorConfig fetcherConfig =

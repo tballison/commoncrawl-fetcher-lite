@@ -1,0 +1,15 @@
+{
+  "_comment": "Option B for onenote.json -- queries the columnar (Parquet) index instead of scanning CDX shards. Needs AWS credentials (not Athena, not billed). See docs/columnar-index.adoc. Set dryRun to false to actually download files.",
+  "dryRun": true,
+  "columnarIndex": {
+    "crawlGlob": "CC-MAIN-2025-*",
+    "subset": "warc",
+    "where": "content_mime_detected LIKE 'application/onenote%' AND fetch_status = 200"
+  },
+  "docs": {
+    "path": "docs/onenote"
+  },
+  "maxFilesExtracted": 10000,
+  "maxFilesTruncated": -1,
+  "targetPathPattern": "xx/xx/xxx"
+}

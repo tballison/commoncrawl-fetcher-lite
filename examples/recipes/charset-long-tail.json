@@ -1,0 +1,42 @@
+{
+  "_comment": "HTML pages declared in long-tail charsets that real-world Tika bug reports underweight. KOI8-R/U, IBM866 (DOS Cyrillic), windows-874 (Thai), windows-1257 (Baltic), ISO-8859-3/16 (Latin-3/10), x-mac-* (Mac variants), Big5-HKSCS, IBM424 (Hebrew EBCDIC).",
+  "dryRun": true,
+  "fetcher": {
+    "throttleSeconds": [30, 60, 120, 240, 480, 600, 900, 1800]
+  },
+  "indices": {
+    "paths": [
+      "crawl-data/CC-MAIN-2025-08/cc-index.paths.gz"
+    ]
+  },
+  "docs": {
+    "path": "docs/charset-long-tail"
+  },
+  "maxFilesExtracted": 1000,
+  "numThreads": 2,
+  "recordSelector": {
+    "must": {
+      "status": [{"match": "200"}],
+      "mime_detected": [
+        {"match": "text/html"},
+        {"match": "application/xhtml+xml"}
+      ]
+    },
+    "should": {
+      "charset": [
+        {"match": "koi8-r", "case_sensitive": false},
+        {"match": "koi8-u", "case_sensitive": false},
+        {"match": "ibm866", "case_sensitive": false},
+        {"match": "windows-874", "case_sensitive": false},
+        {"match": "windows-1257", "case_sensitive": false},
+        {"match": "iso-8859-3", "case_sensitive": false},
+        {"match": "iso-8859-16", "case_sensitive": false},
+        {"match": "x-mac-roman", "case_sensitive": false},
+        {"match": "x-mac-cyrillic", "case_sensitive": false},
+        {"match": "big5-hkscs", "case_sensitive": false},
+        {"match": "ibm424", "case_sensitive": false}
+      ]
+    }
+  },
+  "targetPathPattern": "xx/xx/xxx"
+}

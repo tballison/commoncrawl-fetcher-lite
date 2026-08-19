@@ -85,7 +85,11 @@ public class BackoffHttpFetcher extends HttpFetcher {
                     throw e;
                 }
                 Matcher m = Pattern.compile("bad status code: (\\d+)").matcher(e.getMessage());
-                if (m.find() && m.group(1).equals("503")) {
+                boolean isThrottle = m.find()
+                        && (m.group(1).equals("503")
+                                || (m.group(1).equals("403")
+                                        && e.getMessage().contains("too much traffic")));
+                if (isThrottle) {
                     long sleepMs = 1000 * throttleSeconds[tries];
                     LOGGER.warn(
                             "got backoff warning (#{}) for {}. Will sleep {} seconds. "

@@ -1,9 +1,9 @@
 {
+  "_comment": "Set dryRun to false to actually download files. With true, it only scans the index.",
   "dryRun" : true,
   "indices": {
     "paths": [
-      "crawl-data/CC-MAIN-2023-06/cc-index.paths.gz",
-      "crawl-data/CC-MAIN-2022-49/cc-index.paths.gz"
+      "crawl-data/CC-MAIN-2025-08/cc-index.paths.gz"
     ]
   },
   "recordSelector": {

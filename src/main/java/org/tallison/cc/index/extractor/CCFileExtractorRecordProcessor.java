@@ -20,7 +20,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.Locale;
 import java.util.Optional;
 
 import org.tallison.cc.index.AbstractRecordProcessor;
@@ -42,7 +41,7 @@ public class CCFileExtractorRecordProcessor extends AbstractRecordProcessor {
 
     private final FileFromCCWarcExtractor fileFromCCWarcFetcher;
 
-    private static final long REPORT_EVERY = 1_000_000;
+    private static final long REPORT_EVERY = 100_000;
 
     public CCFileExtractorRecordProcessor(
             ExtractorConfig fetcherConfig, CCIndexReaderCounter counter)
@@ -56,7 +55,7 @@ public class CCFileExtractorRecordProcessor extends AbstractRecordProcessor {
     public boolean process(String json) throws IOException, InterruptedException {
         long totalRead = counter.getRecordsRead().incrementAndGet();
         if (totalRead % REPORT_EVERY == 0) {
-            LOGGER.info("processed: {}", String.format(Locale.US, "%,d", totalRead));
+            LOGGER.info("progress: {}", counter.progressSummary());
         }
         if (fetcherConfig.getMaxRecords() > -1 && totalRead >= fetcherConfig.getMaxRecords()) {
             LOGGER.info("hit max read");

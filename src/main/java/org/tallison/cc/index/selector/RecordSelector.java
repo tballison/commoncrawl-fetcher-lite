@@ -101,6 +101,17 @@ public class RecordSelector {
                 return record.getHost();
             case "digest":
                 return record.getDigest();
+            case "charset":
+                // HTTP-declared charset (Content-Type charset parameter or
+                // <meta charset>) as captured by the crawler.  Not run
+                // through any charset detector — pure declaration.
+                return record.getCharset();
+            case "languages":
+                // Comma-separated list of languages declared via HTML lang=
+                // attribute or Content-Language header.  Pure declaration.
+                return record.getLanguages();
+            case "tld":
+                return CCIndexRecord.getTLD(record.getUrl());
             default:
                 throw new IllegalArgumentException("Don't yet support key " + key);
         }

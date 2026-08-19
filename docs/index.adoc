@@ -1,0 +1,332 @@
+// Licensed to the Apache Software Foundation (ASF) under one or more
+// contributor license agreements.  See the NOTICE file distributed with
+// this work for additional information regarding copyright ownership.
+// The ASF licenses this file to You under the Apache License, Version 2.0
+// (the "License"); you may not use this file except in compliance with
+// the License.  You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+= CommonCrawl Fetcher Lite
+:toc: left
+:toclevels: 3
+
+Simplified version of a Common Crawl fetcher.
+This is yet another attempt to make it easy to extract files from
+https://commoncrawl.org/[Common Crawl].
+
+WARNING: This is still alpha! There will be bugs and things will change without warning.
+
+== Goal
+
+Make it easy to extract or refetch a smallish sample (~couple of million) of complete files
+from CommonCrawl data. The primary interest is in binary files, so there's an emphasis on
+being able to sample and extract files by mime-type. If you're building large language
+models, or if you want to process **ALL** of Common Crawl, this project is not for you.
+
+== Background
+
+This section is critical to understanding enough of how CommonCrawl is structured to
+make use of this fetcher.
+
+Common Crawl crawls a large portion of the internet each month (roughly 3 billion URLs).
+
+Common Crawl packages the raw files inside
+https://en.wikipedia.org/wiki/Web_ARChive[WARC] files, each of which is gzipped and then
+appended to other gzipped WARC files to create compound WARC files stored in AWS's S3
+buckets. For a single crawl, there are ~90,000 compound WARC files, each ~1 GB in size.
+Uncompressed, a single month's crawl can weigh in at ~400TiB.
+
+NOTE: Common Crawl truncates files at *5MB*. Researchers who want complete files must
+refetch truncated files from the original URLs. Before the March 2025 crawl, Common Crawl
+truncated files at 1MB.
+
+The index files and the compound WARC files are accessible via `S3` (`s3://commoncrawl/`)
+and HTTPS (`https://data.commoncrawl.org/`).
+
+Users may extract individual gzipped WARC files with an HTTP/S3 range query from the
+compound WARC files.
+
+To ease access to files, Common Crawl publishes index files, 300 per crawl, totalling
+300GB compressed / 1TB uncompressed. Each line of these index files stores information
+about a fetch of a single URL:
+
+1. the URL in a format optimized for sorting by host and domain
+2. a timestamp
+3. a JSON object
+
+This is an example of a line:
+
+[source]
+----
+app,web,hurmaninvesterarimli)/89132/31224.html 20230208165905 {"url": "https://hurmaninvesterarimli.web.app/89132/31224.html", "mime": "text/html", "mime-detected": "text/html", "status": "200", "digest": "AQTOHAB777KB7F6E4GRMPNY2IGLGUA2K", "length": "6615", "offset": "325152484", "filename": "crawl-data/CC-MAIN-2023-06/segments/1674764500837.65/warc/CC-MAIN-20230208155417-20230208185417-00224.warc.gz", "charset": "UTF-8", "languages": "slk,eng,spa"}
+----
+
+The JSON object above:
+
+[source,json]
+----
+{
+  "charset": "UTF-8",
+  "digest": "AQTOHAB777KB7F6E4GRMPNY2IGLGUA2K",
+  "filename": "crawl-data/CC-MAIN-2023-06/segments/.../CC-MAIN-...-00224.warc.gz",
+  "languages": "slk,eng,spa",
+  "length": "6615",
+  "mime": "text/html",
+  "mime-detected": "text/html",
+  "offset": "325152484",
+  "status": "200",
+  "url": "https://hurmaninvesterarimli.web.app/89132/31224.html"
+}
+----
+
+.Index record fields
+[cols="1,3"]
+|===
+|Field |Description
+
+|`charset` |What the HTTP header claimed the charset was
+|`digest` |BASE32-encoded SHA1 of the file
+|`filename` |Name of the compound WARC file in S3 containing this file's WARC
+|`languages` |Languages as identified by Common Crawl
+|`length` |Length of the compressed WARC file
+|`mime` |Content-Type from the HTTP header
+|`mime-detected` |MIME type as detected by Apache Tika (added in `CC-MAIN-2017-22`)
+|`offset` |Offset in the compound WARC where this individual WARC file starts
+|`status` |HTTP status code returned during the fetch
+|`redirect` |If a 302, the redirect URL is stored
+|`truncated` |If the file was truncated, populated with a cause (e.g. `length`)
+|`url` |The target URL for this file
+|===
+
+NOTE: AWS does not allow anonymous access to Common Crawl's S3 bucket -- see
+https://commoncrawl.org/access-the-data/[access-the-data].
+If you'd prefer to use S3 instead of HTTPS, see xref:configuration.adoc[Configuring the Fetch].
+
+== Steps to Run the Fetcher
+
+WARNING: For each month's crawl, this process downloads ~300GB of index data via HTTPS or
+S3. If you are running locally and you'd prefer to download the index data only once, see
+xref:advanced.adoc[Advanced Scenarios].
+
+=== 1. Specify What is Wanted
+
+At a minimum, the user defines a few parameters in a JSON file
+(link:../examples/minimal-config.json[minimal-config.json], for example).
+
+In the following, we have given a minimal example for extracting all files identified as
+`mp4` files from two crawls: `CC-MAIN-2025-08` and `CC-MAIN-2024-51`. See the
+https://commoncrawl.org/connect/blog/[CommonCrawl blog] for the names of crawls.
+
+The `indices` element contains paths to the index lists for target crawls. The
+`recordSelector` tells the fetcher which records to process. The following requires that
+the URL have a status of `200` and that the `mime_detected` value is `video/mp4` or
+`video/quicktime`.
+
+TIP: Run `ListCrawls` to see all available crawls and their IDs, or use `QuickFetch`
+to skip writing a config file entirely.
+
+We have included the optional `dryRun` parameter in the example. This reports files that
+it would have extracted from Common Crawl if `dryRun` had been set to `false`.
+
+WARNING: If `dryRun` is `true`, no files will be downloaded. Set it to `false` when you
+are ready to actually extract files.
+
+There are many configuration options -- see xref:configuration.adoc[Configuring the Fetch]
+for more details. See `examples/recipes/` for ready-to-use configurations for common file
+types (PDFs, Office documents, images, etc.).
+
+[source,json]
+----
+{
+    "dryRun" : true,
+    "indices": {
+      "paths": [
+        "crawl-data/CC-MAIN-2025-08/cc-index.paths.gz",
+        "crawl-data/CC-MAIN-2024-51/cc-index.paths.gz"
+      ]
+    },
+    "recordSelector": {
+        "must": {
+            "status": [
+                { "match": "200" }
+            ]
+        },
+        "should": {
+            "mime_detected": [
+                { "match": "video/mp4" },
+                { "match": "video/quicktime" }
+            ]
+        }
+    }
+}
+----
+
+=== 2. Run the Code
+
+Users must have Java (>= 17) installed. To check your version: `java -version`.
+
+Get the latest released jar from
+https://github.com/tballison/commoncrawl-fetcher-lite/releases[GitHub releases].
+
+[source,bash]
+----
+java -jar commoncrawl-fetcher-lite-X.Y.Z.jar minimal-config.json
+----
+
+This fetcher will extract non-truncated `mp4` files from CommonCrawl's compound WARC files
+and put the `mp4` files in the `docs/` directory. The fetcher will write the URLs for the
+`mp4` files that CommonCrawl truncated to a file named `logs/docs/urls-truncated.csv` (the
+subdirectory is named after `docs.path`; see xref:configuration.adoc#_logging[Logging]) for
+later re-fetching.
+
+For help:
+
+[source,bash]
+----
+java -jar commoncrawl-fetcher-lite-X.Y.Z.jar --help
+----
+
+=== Quick Alternative: QuickFetch
+
+For simple use cases, you can skip writing a config file entirely:
+
+[source,bash]
+----
+# Fetch PDFs from the latest crawl
+java -jar commoncrawl-fetcher-lite-X.Y.Z.jar QuickFetch --mime application/pdf --output ~/data/pdfs
+
+# Fetch Excel files with a limit
+java -jar commoncrawl-fetcher-lite-X.Y.Z.jar QuickFetch --extension xlsx,xlsm --output ~/data/excel --max 5000
+
+# Dry run first to see counts
+java -jar commoncrawl-fetcher-lite-X.Y.Z.jar QuickFetch --mime application/pdf --dry-run
+----
+
+Run `QuickFetch --help` for all options and a list of common MIME types.
+
+=== Monitoring Progress
+
+While the fetcher is running, you can monitor progress:
+
+[source,bash]
+----
+# Count successfully extracted files (subdirectory name comes from docs.path / runLabel)
+wc -l logs/*/extracted-urls.csv
+
+# Count files on disk
+find docs/ -type f | wc -l
+
+# Watch the log for index file processing progress
+# Each "finished processing index gz" message means one of ~300 index files is done
+----
+
+The fetcher logs to stdout via Log4j2. Key messages to watch for:
+
+* `starting to fetch index gz` -- a worker has started processing an index file
+* `finished processing index gz in (X) ms` -- an index file is complete
+* `Index paths reader successfully completed` -- all index file paths have been enqueued
+* `Finished` -- the entire run is complete
+
+=== 3. Refetch Truncated Files
+
+There are many options for this. The simplest might be
+https://www.gnu.org/software/wget/[wget]:
+
+[source,bash]
+----
+wget -i logs/<runLabel>/urls-truncated.csv
+----
+
+See also options for https://curl.se/[curl], such as this
+https://www.baeldung.com/linux/curl-download-urls-listed-in-file[article].
+
+The https://nutch.apache.org/[Nutch project] may be excessive, but it is extremely
+scaleable and robust (*it powers Common Crawl!*), and it records the WARC information for
+each fetch.
+
+For other scenarios, see xref:advanced.adoc[Advanced Scenarios].
+
+== How to Build
+
+For those who want to build the latest, you'll need Java JDK >= 17 and recent versions of
+git and Maven installed.
+
+[source,bash]
+----
+git clone https://github.com/tballison/commoncrawl-fetcher-lite
+cd commoncrawl-fetcher-lite
+./mvnw install
+----
+
+The jar file will be built in `target/`.
+
+== Design Goals
+
+This is intended to be light-weight. The current design does not store provenance
+information for the URLs nor for the refetches. The goal is simply to select files for
+extraction and to extract them or record the URLs for truncated files.
+
+WARNING: AWS throttles download rates, especially for HTTP requests. This code is designed
+with back-off logic for the default HTTP fetcher so that it will pause if it gets a
+throttle warning from AWS. While this code is multi-threaded, it is not useful to run more
+than about 3 threads when fetching from HTTP. When running this code on AWS instances
+pulling from S3, 50 threads have been used without receiving throttling complaints.
+
+== Changes in Common Crawl Indices Over Time
+
+Over time, Common Crawl has added new fields. If you're pulling from old crawls, the
+fields that you need may not exist in the older index files. For example, `mime-detected`
+was added in the `CC-MAIN-2017-22` crawl. If a value is `null` for a requested field,
+there will be logging that warns about a null value for a given field. If the field is in a
+`must_not` clause, that clause will not be considered; if the field is in a `must` or
+`should` clause, that record will not be selected.
+
+== Roadmap
+
+Please open bug reports and issues to help prioritize future development.
+
+1. Add more features to the record selector -- handle numeric values (e.g. `int`) and
+   allow for `gt`, `gte` and `range` options
+2. Add a refetcher that stores the refetched files with the same policy that the fetcher
+   stores files (same file+directory naming strategy) and potentially writes a table of
+   URLs and fetched digest
+3. Allow a different extracted file naming scheme -- CC's SHA1 or any encoding+digest
+   combination?
+4. ~~Allow extraction of truncated files~~ (done -- see `extractTruncated` in
+   xref:configuration.adoc[Configuring the Fetch])
+5. ~~Allow counting of mimes or other features -- not just those selected~~ (done -- see
+   `CountMimes` command)
+6. Store fetch status and refetch status in an actual database -- against the design goals
+   of this project. LOL...
+7. Use parquet files (with or without duckdb and httpfs) instead of the current JSON-based
+   index files (see this
+   https://avilpage.com/2022/11/common-crawl-laptop-extract-subset.html[post])
+8. ...
+
+== Related Projects
+
+* https://github.com/centic9/CommonCrawlDocumentDownload[CommonCrawlDocumentDownload]
+  (initial inspiration)
+* https://github.com/tballison/SimpleCommonCrawlExtractor[SimpleCommonCrawlExtractor]
+  (first attempt)
+* https://github.com/tballison/file-observatory/tree/main/commoncrawl-fetcher[commoncrawl-fetcher module in file-observatory]
+  (second attempt)
+
+== For Advanced Users
+
+If you have AWS credentials on hand, the built-in `QueryIndex` command finds the same matches
+by querying Common Crawl's columnar (Parquet) index directly instead of scanning the CDX index
+shard-by-shard -- much faster, and able to search many/all crawls in one query. It's not AWS
+Athena and isn't billed. See xref:columnar-index.adoc[Option B: Querying the Columnar Index].
+
+You can also query the same Parquet files from Amazon Athena yourself (this does incur Athena
+charges); see this
+https://commoncrawl.org/2018/03/index-to-warc-files-and-urls-in-columnar-format/[Common Crawl post]
+on how to run queries against the indices.

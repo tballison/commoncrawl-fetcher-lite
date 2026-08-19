@@ -140,7 +140,9 @@ public class CCIndexFetcher {
                 streamEmitter.emit(
                         t.getFetchKey().getFetchKey(), is, new Metadata(), new ParseContext());
                 LOGGER.info("successfully downloaded: " + t.getFetchKey().getFetchKey());
-            } catch (TikaException | IOException e) {
+            } catch (TikaException | IOException | RuntimeException e) {
+                // RuntimeException covers TikaTimeoutException (extends RuntimeException, not
+                // TikaException) -- an occasional slow fetch must not kill the whole run.
                 LOGGER.error("failed to copy " + t.getFetchKey().getFetchKey(), e);
             }
         }

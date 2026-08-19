@@ -16,6 +16,7 @@
  */
 package org.tallison.cc.index;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
@@ -35,6 +36,9 @@ import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+// Common Crawl adds fields to the index JSON over time (e.g. "recordid"); without this,
+// every record carrying a field this class doesn't declare fails to parse.
+@JsonIgnoreProperties(ignoreUnknown = true)
 @JsonNaming(PropertyNamingStrategies.KebabCaseStrategy.class)
 public class CCIndexRecord {
 

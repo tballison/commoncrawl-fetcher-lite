@@ -1,0 +1,53 @@
+{
+  "dryRun": false,
+  "fetcher": {
+    "throttleSeconds": [30, 60, 120, 240, 480, 600, 900, 1800]
+  },
+  "indices": {
+    "paths": [
+      "crawl-data/CC-MAIN-2025-08/cc-index.paths.gz"
+    ]
+  },
+  "docs": {
+    "path": "docs/images"
+  },
+  "maxFilesExtracted": 10000,
+  "maxFilesTruncated": -1,
+  "maxRecords": -1,
+  "numThreads": 2,
+  "recordSelector": {
+    "must": {
+      "status": [
+        {
+          "match": "200"
+        }
+      ]
+    },
+    "should": {
+      "mime_detected": [
+        {
+          "match": "image/jpeg"
+        },
+        {
+          "match": "image/png"
+        },
+        {
+          "match": "image/gif"
+        },
+        {
+          "match": "image/webp"
+        },
+        {
+          "match": "image/tiff"
+        },
+        {
+          "match": "image/bmp"
+        },
+        {
+          "match": "image/svg+xml"
+        }
+      ]
+    }
+  },
+  "targetPathPattern": "xx/xx/xxx"
+}

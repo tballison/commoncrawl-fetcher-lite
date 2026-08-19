@@ -1,0 +1,15 @@
+{
+  "_comment": "Option B: finds matches via the columnar (Parquet) index instead of scanning the CDX index. Needs AWS credentials (not Athena, not billed) -- see docs/columnar-index.adoc. Set dryRun to false to actually download files.",
+  "dryRun": true,
+  "columnarIndex": {
+    "crawlGlob": "CC-MAIN-2025-*",
+    "subset": "warc",
+    "where": "content_mime_detected = 'application/pdf' AND fetch_status = 200"
+  },
+  "docs": {
+    "path": "docs"
+  },
+  "maxFilesExtracted": 10000,
+  "maxFilesTruncated": -1,
+  "targetPathPattern": "xx/xx/xxx"
+}

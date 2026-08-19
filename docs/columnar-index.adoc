@@ -1,0 +1,202 @@
+// Licensed to the Apache Software Foundation (ASF) under one or more
+// contributor license agreements.  See the NOTICE file distributed with
+// this work for additional information regarding copyright ownership.
+// The ASF licenses this file to You under the Apache License, Version 2.0
+// (the "License"); you may not use this file except in compliance with
+// the License.  You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+= Option B: Querying the Columnar Index
+:toc: left
+:toclevels: 2
+
+The `Fetch` command (xref:configuration.adoc[Configuring the Fetch]) finds matching files by
+downloading and scanning the raw CDX index shard-by-shard -- reliable and needs nothing but
+HTTPS, but it means downloading roughly 300GB of index data *per crawl*, regardless of how
+rare your target file type is. For a single crawl that's ~4 hours; for five crawls, most of a
+day.
+
+`QueryIndex` is an alternative command that finds the same matches by querying Common Crawl's
+https://commoncrawl.org/columnar-index[columnar index] -- the same metadata as the CDX index,
+pre-converted to partitioned Apache Parquet. Column and partition pruning mean a targeted query
+touches a small fraction of that 300GB, and it can search *every* available crawl in one query
+instead of one crawl per run. In testing against `CC-MAIN-2026-30` (already fully scanned via
+`Fetch` in ~4 hours), the equivalent `QueryIndex` run found the same files -- plus 3 more that
+the CDX scan's line-oriented parser had missed -- in about 2 minutes.
+
+WARNING: This is still the newer of the two paths. `Fetch` remains the default recommendation
+for straightforward, unattended, credential-free runs; reach for `QueryIndex` when you want
+speed, broader crawl coverage, or already have AWS credentials on hand.
+
+CAUTION: A `crawlGlob` spanning *every* crawl (`CC-MAIN-*`, ~125 crawls) touches thousands of
+Parquet part-files and can trigger S3 request-rate throttling (`503 SlowDown`) on a sustained
+run. `QueryIndex` widens DuckDB's default HTTP retry budget specifically to survive this (see
+<<Retry tuning>>), but an empirical test of an unbounded `CC-MAIN-*` glob using DuckDB's stock
+retry settings ran for 97 minutes before failing outright to a `SlowDown` error with zero
+partial results retained. Prefer scoping `crawlGlob` to the crawls you actually need
+(`CC-MAIN-2026-*`, or an explicit range) over `*` when you can.
+
+== Prerequisites
+
+You need *AWS credentials* -- any valid AWS account, nothing Common-Crawl-specific. This is
+*not* AWS Athena, and no Athena charges apply.
+
+Why credentials are needed at all: Common Crawl's S3 bucket allows anonymous `GetObject` (that's
+how `Fetch` and the rest of this tool work with zero AWS setup) but not anonymous
+`ListBucket` -- you can download a file if you already know its exact name, but can't ask "what
+Parquet part-files exist under this crawl's partition?" without being a signed-in AWS caller.
+That's the one operation `QueryIndex` needs credentials for.
+
+This should not cost you anything: the bucket is *not* requester-pays (confirmed via
+`https://commoncrawl.s3.amazonaws.com` bucket policy and Common Crawl's own documentation), so
+S3 request/storage costs are borne by Common Crawl's AWS Open Data sponsorship, not by whoever's
+credentials sign the request. `QueryIndex` uses your default AWS credential chain (the same
+resolution DuckDB's `load_aws_credentials()` uses -- environment variables, `~/.aws/credentials`,
+etc.), so if `aws configure` already works on your machine, you're set.
+
+If you'd rather run the equivalent query server-side, the underlying Parquet files are also
+queryable from Amazon Athena -- see the
+https://github.com/commoncrawl/cc-index-table[cc-index-table] project for the Athena
+`CREATE TABLE` statements. That path *does* bill (~$5/TB scanned, typically well under $1 for a
+column-pruned single-crawl query); `QueryIndex` does not use it.
+
+=== Retry tuning
+
+DuckDB's httpfs defaults (`http_retries=3`, `http_retry_wait_ms=100`, `http_retry_backoff=4`)
+give well under 2 seconds of total backoff on a failed HTTP read -- fine for a handful of
+files, not enough to ride out sustained S3 throttling on a broad query. `QueryIndex` widens
+this itself (`http_retries=12`, `http_retry_wait_ms=2000`, `http_retry_backoff=2`, in
+`CCColumnarIndexExtractor`) before running any query, giving each failed read up to ~2 hours of
+cumulative backoff -- comparable in spirit to `BackoffHttpFetcher`'s own retry ladder for WARC
+fetches (these are two separate HTTP clients; widening one doesn't touch the other). This is
+not a substitute for scoping `crawlGlob` sensibly -- it buys patience, not throughput.
+
+== Config
+
+[source,json]
+----
+{
+  "dryRun": false,
+  "columnarIndex": {
+    "crawlGlob": "CC-MAIN-2026-*",
+    "subset": "warc",
+    "where": "content_mime_detected LIKE 'application/onenote%' AND fetch_status = 200"
+  },
+  "docs": {
+    "path": "/home/you/data/commoncrawl/onenote"
+  },
+  "targetPathPattern": "xx/xx/xxx"
+}
+----
+
+[cols="1,3"]
+|===
+|Field |Description
+
+|`crawlGlob`
+|Which crawl partition(s) to query, e.g. `CC-MAIN-2026-30` for one crawl,
+`CC-MAIN-2026-*` for all 2026 crawls, or `*` for every crawl Common Crawl has. Interpolated
+directly into `s3://commoncrawl/cc-index/table/cc-main/warc/crawl=<crawlGlob>/subset=<subset>/`.
+
+|`subset`
+|Optional, defaults to `warc` (the response-record subset; matches what `Fetch` scans by
+default).
+
+|`where`
+|A raw SQL `WHERE` clause evaluated against the Parquet columns (see <<Column reference>>
+below) -- there's no selector-DSL translation layer, so write it directly. This is the same
+predicate a hand-written DuckDB or Athena query would use.
+|===
+
+All the usual top-level fields still apply: `docs`, `fetcher`, `dryRun`, `extractTruncated`,
+`maxFilesExtracted`, `maxFilesTruncated`, `targetPathPattern`, `runLabel`. `recordSelector` is
+not used in this mode -- filtering happens in the SQL `where` clause instead, which DuckDB pushes
+down into the Parquet scan itself rather than re-checking every row in Java.
+
+== Running it
+
+[source,bash]
+----
+java -jar commoncrawl-fetcher-lite-X.Y.Z.jar QueryIndex config.json
+----
+
+Each matched row is fetched and logged exactly like a `Fetch` match -- same WARC byte-range
+fetch, same `logs/<runLabel>/extracted-urls.csv` / `urls-truncated.csv` output (see
+xref:configuration.adoc#_logging[Logging]), so `QueryIndex` and `Fetch` results accumulate into
+the same files if you point them at the same `docs.path` / `runLabel`.
+
+== Column reference
+
+Common columns for the `where` clause (full schema:
+https://github.com/commoncrawl/cc-index-table/blob/main/src/main/resources/schema/cc-index-schema-flat.json[cc-index-schema-flat.json]):
+
+[cols="1,3"]
+|===
+|Column |Description
+
+|`url` |Full URL
+|`url_host_tld` |Top-level domain, e.g. `com`, `org`
+|`url_host_registered_domain` |Registrable domain, e.g. `example.com`
+|`fetch_status` |HTTP status code (integer, not a string -- e.g. `fetch_status = 200`)
+|`content_mime_type` |Content-Type from the HTTP header
+|`content_mime_detected` |MIME type as detected by Apache Tika
+|`content_digest` |SHA-1 content digest
+|`content_charset` |Declared charset
+|`content_languages` |Declared language(s)
+|`content_truncated` |Non-null if Common Crawl truncated the capture (5MB limit)
+|`warc_filename` |WARC filename/path below `s3://commoncrawl/`
+|`warc_record_offset` / `warc_record_length` |Byte range of the WARC record
+|===
+
+Sample predicates:
+
+[source,sql]
+----
+-- by mime type
+content_mime_detected LIKE 'application/onenote%' AND fetch_status = 200
+
+-- by extension, when mime detection might miss it -- filter on url_path, NOT the full url:
+-- ".one" is also a real gTLD, so "url LIKE '%.one'" matches bare domains like
+-- "http://chernivtsi.one" (no path) as false positives. url_path excludes the host, so a
+-- domain-only URL's path is empty/"/" and won't match here.
+(url_path LIKE '%.one' OR url_path LIKE '%.onetoc2') AND fetch_status = 200
+
+-- by domain
+url_host_registered_domain = 'example.com' AND fetch_status = 200
+----
+
+== Why results can differ from `Fetch`
+
+`Fetch` parses CDX lines with a hand-rolled `sortkey timestamp {json}` splitter
+(`CCIndexRecord.parseRecord`) that can fail on malformed or unusual lines -- and Common Crawl
+has, in practice, added new JSON fields to the CDX format between crawls (see
+`@JsonIgnoreProperties(ignoreUnknown = true)` on `CCIndexRecord`) that older parsing logic
+wouldn't have tolerated. The columnar index is proper structured Parquet with no such parsing,
+so `QueryIndex` results are generally a superset of what `Fetch` finds for the same crawl and
+predicate, not a different sample.
+
+== Prior art
+
+The query-columnar-index-then-range-fetch-the-WARC-record pattern `QueryIndex` implements isn't
+novel -- Common Crawl Foundation's own tutorials walk through the same two steps by hand:
+
+* https://github.com/commoncrawl/whirlwind-java[whirlwind-java] -- a Java walkthrough covering
+  CDXJ vs. columnar indexes, reading WARC records with
+  https://github.com/netpreserve/jwarc[jwarc] (the same library this project uses), and a task
+  titled "Query using the columnar index + DuckDB from outside AWS" followed by range-fetching
+  the match. It's a single hardcoded illustrative example (one URL, one timestamp) meant to be
+  read and adapted by hand, not a config-driven batch tool -- no crawl/mime selection, no
+  structured output logging, no retry handling, no truncation handling, no bulk operation
+  across many matches. `QueryIndex` is what running that pattern unattended, at scale, against
+  a config file looks like.
+* https://github.com/commoncrawl/whirlwind-python[whirlwind-python] and its announcement,
+  https://commoncrawl.org/blog/announcing-the-whirlwind-tour-of-common-crawls-datasets-using-python[Announcing
+  the Whirlwind Tour of Common Crawl's Datasets using Python] (June 2025) -- the same pattern
+  in Python, using `warcio`/`cdxj-indexer`/`cdx_toolkit`/`duckdb`.

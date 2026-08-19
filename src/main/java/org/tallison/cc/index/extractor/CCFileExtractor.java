@@ -89,13 +89,18 @@ public class CCFileExtractor {
         indexIterator.initialize(Collections.EMPTY_MAP);
         executorCompletionService.submit(new CallablePipesIterator(indexIterator, indexFileQueue));
         CCIndexReaderCounter counter = new CCIndexReaderCounter();
+        int totalIndexFiles = indexIterator.getResolvedIndexFileCount();
+        counter.setTotalIndexFiles(totalIndexFiles);
+        LOGGER.info("Resolved {} index files to process", totalIndexFiles);
         int finishedWorkers = 0;
         try {
             for (int i = 0; i < fetcherConfig.getNumThreads(); i++) {
                 CCFileExtractorRecordProcessor processor =
                         new CCFileExtractorRecordProcessor(fetcherConfig, counter);
                 executorCompletionService.submit(
-                        new IndexWorker(fetcherConfig, indexFileQueue, processor));
+                        new IndexWorker(
+                                fetcherConfig, indexFileQueue,
+                                processor, counter));
             }
 
             while (finishedWorkers < fetcherConfig.getNumThreads()) {
@@ -131,16 +136,19 @@ public class CCFileExtractor {
 
         private final ArrayBlockingQueue<FetchEmitTuple> indexUrls;
         private final AbstractRecordProcessor recordProcessor;
+        private final CCIndexReaderCounter counter;
 
         private final Fetcher indexFetcher;
 
         IndexWorker(
                 ExtractorConfig fetcherConfig,
                 ArrayBlockingQueue<FetchEmitTuple> indexUrls,
-                CCFileExtractorRecordProcessor recordProcessor)
+                CCFileExtractorRecordProcessor recordProcessor,
+                CCIndexReaderCounter counter)
                 throws TikaException {
             this.indexUrls = indexUrls;
             this.recordProcessor = recordProcessor;
+            this.counter = counter;
             this.indexFetcher = fetcherConfig.newIndexFileFetcher();
         }
 
@@ -208,15 +216,19 @@ public class CCFileExtractor {
                         }
                     }
                 }
-            } catch (TikaException | IOException e) {
+            } catch (TikaException | IOException | RuntimeException e) {
+                // RuntimeException covers TikaTimeoutException (extends RuntimeException, not
+                // TikaException) -- an occasional slow fetch must not kill the whole run.
                 LOGGER.error(
                         "failed while processing " + fetchEmitTuple.getFetchKey().getFetchKey(), e);
             }
             long elapsed = System.currentTimeMillis() - start;
+            counter.getIndexFilesCompleted().incrementAndGet();
             LOGGER.info(
-                    "finished processing index gz in ({}) ms: {}",
+                    "finished processing index gz in ({}) ms: {} -- {}",
                     String.format(Locale.US, "%,d", elapsed),
-                    fetchEmitTuple.getFetchKey().getFetchKey());
+                    fetchEmitTuple.getFetchKey().getFetchKey(),
+                    counter.progressSummary());
             return true;
         }
     }

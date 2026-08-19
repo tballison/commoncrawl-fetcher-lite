@@ -16,6 +16,7 @@
  */
 package org.tallison.cc.index;
 
+import java.util.Locale;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class CCIndexReaderCounter {
@@ -23,6 +24,8 @@ public class CCIndexReaderCounter {
     AtomicLong filesExtracted = new AtomicLong(0);
     AtomicLong truncated = new AtomicLong(0);
     AtomicLong emptyPayload = new AtomicLong(0);
+    AtomicLong indexFilesCompleted = new AtomicLong(0);
+    private int totalIndexFiles = -1;
 
     public AtomicLong getRecordsRead() {
         return recordsRead;
@@ -38,6 +41,43 @@ public class CCIndexReaderCounter {
 
     public AtomicLong getEmptyPayload() {
         return emptyPayload;
+    }
+
+    public AtomicLong getIndexFilesCompleted() {
+        return indexFilesCompleted;
+    }
+
+    public int getTotalIndexFiles() {
+        return totalIndexFiles;
+    }
+
+    public void setTotalIndexFiles(int totalIndexFiles) {
+        this.totalIndexFiles = totalIndexFiles;
+    }
+
+    /**
+     * Returns a formatted progress summary suitable for logging.
+     */
+    public String progressSummary() {
+        long completed = indexFilesCompleted.get();
+        long records = recordsRead.get();
+        long extracted = filesExtracted.get();
+        long trunc = truncated.get();
+
+        StringBuilder sb = new StringBuilder();
+        if (totalIndexFiles > 0) {
+            double pct = 100.0 * completed / totalIndexFiles;
+            sb.append(String.format(Locale.US,
+                    "index files: %,d/%,d (%.1f%%)",
+                    completed, totalIndexFiles, pct));
+        } else {
+            sb.append(String.format(Locale.US,
+                    "index files: %,d completed", completed));
+        }
+        sb.append(String.format(Locale.US,
+                " | records: %,d | extracted: %,d | truncated: %,d",
+                records, extracted, trunc));
+        return sb.toString();
     }
 
     @Override

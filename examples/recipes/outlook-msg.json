@@ -1,21 +1,20 @@
 {
-  "_comment": "Set dryRun to false to actually download files. With true, it only scans the index.",
-  "dryRun": true,
+  "dryRun": false,
   "fetcher": {
-    "throttleSeconds": [ 30, 120, 600, 1800]
+    "throttleSeconds": [30, 60, 120, 240, 480, 600, 900, 1800]
   },
-  "indices" : {
+  "indices": {
     "paths": [
       "crawl-data/CC-MAIN-2025-08/cc-index.paths.gz"
     ]
   },
   "docs": {
-    "path": "docs"
+    "path": "docs/outlook-msg"
   },
   "maxFilesExtracted": 10000,
   "maxFilesTruncated": -1,
   "maxRecords": -1,
-  "numThreads": 3,
+  "numThreads": 2,
   "recordSelector": {
     "must": {
       "status": [
@@ -27,10 +26,7 @@
     "should": {
       "mime_detected": [
         {
-          "match": "video/mp4"
-        },
-        {
-          "match": "video/quicktime"
+          "match": "application/vnd.ms-outlook"
         }
       ]
     }

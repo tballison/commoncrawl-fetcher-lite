@@ -1,0 +1,39 @@
+{
+  "_comment": "CJK-region HTML pages whose servers declared a non-UTF-8 charset. Targets Shift_JIS / EUC-JP / GB18030 / Big5-HKSCS / x-windows-949 documents.",
+  "dryRun": true,
+  "fetcher": {
+    "throttleSeconds": [30, 60, 120, 240, 480, 600, 900, 1800]
+  },
+  "indices": {
+    "paths": [
+      "crawl-data/CC-MAIN-2025-08/cc-index.paths.gz"
+    ]
+  },
+  "docs": {
+    "path": "docs/charset-cjk-non-utf8"
+  },
+  "maxFilesExtracted": 1000,
+  "numThreads": 2,
+  "recordSelector": {
+    "must": {
+      "status": [{"match": "200"}],
+      "mime_detected": [
+        {"match": "text/html"},
+        {"match": "application/xhtml+xml"}
+      ]
+    },
+    "must_not": {
+      "charset": [
+        {"match": "utf-8", "case_sensitive": false},
+        {"match": "utf8", "case_sensitive": false}
+      ]
+    },
+    "should": {
+      "tld": [
+        {"match": "jp"}, {"match": "kr"}, {"match": "cn"},
+        {"match": "tw"}, {"match": "hk"}, {"match": "mo"}
+      ]
+    }
+  },
+  "targetPathPattern": "xx/xx/xxx"
+}

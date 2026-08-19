@@ -101,6 +101,9 @@ public class CCMimeCounter {
         indexIterator.initialize(Collections.EMPTY_MAP);
         executorCompletionService.submit(new CallablePipesIterator(indexIterator, indexFileQueue));
         CCIndexReaderCounter counter = new CCIndexReaderCounter();
+        counter.setTotalIndexFiles(indexIterator.getResolvedIndexFileCount());
+        LOGGER.info("Resolved {} index files to process",
+                indexIterator.getResolvedIndexFileCount());
         int finishedWorkers = 0;
         List<DetectedMimeCounter> detectedMimeCounters = new ArrayList<>();
         try {
@@ -108,7 +111,8 @@ public class CCMimeCounter {
                 DetectedMimeCounter processor = new DetectedMimeCounter(fetcherConfig, counter);
                 detectedMimeCounters.add(processor);
                 executorCompletionService.submit(
-                        new IndexWorker(fetcherConfig, indexFileQueue, processor));
+                        new IndexWorker(fetcherConfig, indexFileQueue,
+                                processor, counter));
             }
 
             while (finishedWorkers < fetcherConfig.getNumThreads()) {
@@ -200,16 +204,19 @@ public class CCMimeCounter {
 
         private final ArrayBlockingQueue<FetchEmitTuple> indexUrls;
         private final AbstractRecordProcessor recordProcessor;
+        private final CCIndexReaderCounter counter;
 
         private final Fetcher fetcher;
 
         IndexWorker(
                 ExtractorConfig fetcherConfig,
                 ArrayBlockingQueue<FetchEmitTuple> indexUrls,
-                AbstractRecordProcessor recordProcessor)
+                AbstractRecordProcessor recordProcessor,
+                CCIndexReaderCounter counter)
                 throws TikaException {
             this.indexUrls = indexUrls;
             this.recordProcessor = recordProcessor;
+            this.counter = counter;
             this.fetcher = fetcherConfig.newIndexFileFetcher();
         }
 
@@ -281,15 +288,19 @@ public class CCMimeCounter {
                         }
                     }
                 }
-            } catch (TikaException | IOException e) {
+            } catch (TikaException | IOException | RuntimeException e) {
+                // RuntimeException covers TikaTimeoutException (extends RuntimeException, not
+                // TikaException) -- an occasional slow fetch must not kill the whole run.
                 LOGGER.error(
                         "failed while processing " + fetchEmitTuple.getFetchKey().getFetchKey(), e);
             }
             long elapsed = System.currentTimeMillis() - start;
+            counter.getIndexFilesCompleted().incrementAndGet();
             LOGGER.info(
-                    "finished processing index gz in ({}) ms: {}",
+                    "finished processing index gz in ({}) ms: {} -- {}",
                     String.format(Locale.US, "%,d", elapsed),
-                    fetchEmitTuple.getFetchKey().getFetchKey());
+                    fetchEmitTuple.getFetchKey().getFetchKey(),
+                    counter.progressSummary());
             return true;
         }
 
@@ -323,8 +334,8 @@ public class CCMimeCounter {
         @Override
         public boolean process(String json) throws IOException, InterruptedException {
             long totalRead = counter.getRecordsRead().incrementAndGet();
-            if (totalRead % 1000000 == 0) {
-                LOGGER.info("processed: {}", String.format(Locale.US, "%,d", totalRead));
+            if (totalRead % 100_000 == 0) {
+                LOGGER.info("progress: {}", counter.progressSummary());
             }
             if (fetcherConfig.getMaxRecords() > -1 && totalRead >= fetcherConfig.getMaxRecords()) {
                 LOGGER.info("hit max read");
