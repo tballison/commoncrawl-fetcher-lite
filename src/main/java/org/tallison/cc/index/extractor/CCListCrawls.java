@@ -27,16 +27,12 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-/**
- * Lists available Common Crawl crawls by fetching the collinfo.json endpoint.
- */
+/** Lists available Common Crawl crawls by fetching the collinfo.json endpoint. */
 public class CCListCrawls {
 
-    private static final String COLLINFO_URL =
-            "https://index.commoncrawl.org/collinfo.json";
+    private static final String COLLINFO_URL = "https://index.commoncrawl.org/collinfo.json";
 
-    private static final Pattern CRAWL_ID_PATTERN =
-            Pattern.compile("CC-MAIN-\\d{4}-\\d{2}");
+    private static final Pattern CRAWL_ID_PATTERN = Pattern.compile("CC-MAIN-\\d{4}-\\d{2}");
 
     public static void main(String[] args) throws Exception {
         List<String> crawls = fetchCrawlIds();
@@ -55,26 +51,24 @@ public class CCListCrawls {
         System.out.println("Total: " + crawls.size() + " crawls");
         System.out.println();
         System.out.println("To use in a config file:");
-        System.out.println("  \"indices\": { \"paths\": "
-                + "[\"crawl-data/" + crawls.get(0) + "/cc-index.paths.gz\"] }");
+        System.out.println(
+                "  \"indices\": { \"paths\": "
+                        + "[\"crawl-data/"
+                        + crawls.get(0)
+                        + "/cc-index.paths.gz\"] }");
     }
 
     /**
-     * Fetches the list of crawl IDs from the Common Crawl collinfo.json endpoint.
-     * Returns crawl IDs sorted most-recent-first.
+     * Fetches the list of crawl IDs from the Common Crawl collinfo.json endpoint. Returns crawl IDs
+     * sorted most-recent-first.
      */
     public static List<String> fetchCrawlIds() throws IOException, InterruptedException {
         HttpClient client = HttpClient.newHttpClient();
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(COLLINFO_URL))
-                .GET()
-                .build();
-        HttpResponse<String> response =
-                client.send(request, HttpResponse.BodyHandlers.ofString());
+        HttpRequest request = HttpRequest.newBuilder().uri(URI.create(COLLINFO_URL)).GET().build();
+        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
 
         if (response.statusCode() != 200) {
-            throw new IOException(
-                    "Failed to fetch crawl list: HTTP " + response.statusCode());
+            throw new IOException("Failed to fetch crawl list: HTTP " + response.statusCode());
         }
 
         // Parse crawl IDs from the JSON response.
@@ -96,9 +90,7 @@ public class CCListCrawls {
         return crawlIds;
     }
 
-    /**
-     * Returns the most recent crawl ID, or null if the list cannot be fetched.
-     */
+    /** Returns the most recent crawl ID, or null if the list cannot be fetched. */
     public static String getLatestCrawlId() {
         try {
             List<String> crawls = fetchCrawlIds();

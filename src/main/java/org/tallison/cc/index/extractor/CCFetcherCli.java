@@ -40,6 +40,9 @@ public class CCFetcherCli {
         } else if (command.equals("QueryIndex")) {
             RunLabel.primeFromConfigFile(args[1]);
             CCColumnarIndexExtractor.main(new String[] {args[1]});
+        } else if (command.equals("CountIndex")) {
+            RunLabel.primeFromConfigFile(args[1]);
+            CCColumnarIndexExtractor.count(new String[] {args[1]});
         } else if (command.equals("FetchIndices")) {
             CCIndexFetcher.main(new String[] {args[1]});
         } else if (command.equals("CountMimes")) {
@@ -67,18 +70,26 @@ public class CCFetcherCli {
         System.out.println("  java -jar commoncrawl-fetcher-lite.jar <config.json>");
         System.out.println();
         System.out.println("Commands:");
-        System.out.println("  Fetch <config.json>       Extract files from Common Crawl (scans the CDX index)");
-        System.out.println("  QueryIndex <config.json>  Extract files via the columnar (Parquet) index instead");
-        System.out.println("                            of scanning CDX shards -- faster, needs AWS credentials");
+        System.out.println(
+                "  Fetch <config.json>       Extract files from Common Crawl (scans the CDX index)");
+        System.out.println(
+                "  QueryIndex <config.json>  Extract files via the columnar (Parquet) index instead");
+        System.out.println(
+                "                            of scanning CDX shards -- faster, needs AWS credentials");
         System.out.println("                            for listing (not billed; not Athena). See");
         System.out.println("                            docs/columnar-index.adoc.");
+        System.out.println(
+                "  CountIndex <config.json>  Run columnarIndex.countQuery (a GROUP BY count) against");
+        System.out.println(
+                "                            the columnar index and print the table; fetches nothing");
         System.out.println("  QuickFetch [options]      Fetch files without writing a config file");
         System.out.println("  FetchIndices <config.json> Download index files locally");
         System.out.println("  CountMimes <config.json>  Count MIME types in index records");
         System.out.println("  ListCrawls                List available Common Crawl crawls");
         System.out.println("  --help                    Show this help message");
         System.out.println();
-        System.out.println("If the first argument is a file path, it is treated as 'Fetch <config.json>'.");
+        System.out.println(
+                "If the first argument is a file path, it is treated as 'Fetch <config.json>'.");
         System.out.println();
         System.out.println("Examples:");
         System.out.println("  java -jar commoncrawl-fetcher-lite.jar ListCrawls");
@@ -89,6 +100,7 @@ public class CCFetcherCli {
         System.out.println("      --extension xlsx,xlsm --output ~/data/excel");
         System.out.println();
         System.out.println("For QuickFetch options, run: QuickFetch --help");
-        System.out.println("See https://github.com/tballison/commoncrawl-fetcher-lite for documentation.");
+        System.out.println(
+                "See https://github.com/tballison/commoncrawl-fetcher-lite for documentation.");
     }
 }

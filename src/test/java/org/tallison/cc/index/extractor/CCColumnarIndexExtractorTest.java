@@ -104,4 +104,31 @@ public class CCColumnarIndexExtractorTest {
             }
         }
     }
+
+    @Test
+    public void testCountQueryFormatsTable() throws Exception {
+        ExtractorConfig.ColumnarIndexConfig c =
+                new ExtractorConfig.ColumnarIndexConfig(
+                        "CC-MAIN-2025-08",
+                        null,
+                        null,
+                        "SELECT cs, count(*) AS n FROM ${parquet} GROUP BY cs ORDER BY cs",
+                        null);
+        String sql = CCColumnarIndexExtractor.countSql(c);
+        assertTrue(
+                sql.contains(
+                        "read_parquet('s3://commoncrawl/cc-index/table/cc-main/warc/"
+                                + "crawl=CC-MAIN-2025-08/subset=warc/*.parquet'"),
+                sql);
+        assertEquals(1800L, c.getCountTimeoutSeconds());
+
+        try (Connection conn = DriverManager.getConnection("jdbc:duckdb:");
+                Statement st = conn.createStatement();
+                ResultSet rs =
+                        st.executeQuery(
+                                "SELECT cs, count(*) AS n FROM (VALUES ('a'),('a'),('b')) t(cs) "
+                                        + "GROUP BY cs ORDER BY cs")) {
+            assertEquals("cs\tn\na\t2\nb\t1\n", CCColumnarIndexExtractor.formatTable(rs));
+        }
+    }
 }

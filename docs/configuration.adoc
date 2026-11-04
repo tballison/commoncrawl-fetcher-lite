@@ -338,6 +338,9 @@ requires that at least one of the `should` clauses applies to a record.
 |`host` |Domain/host
 |`digest` |BASE32-encoded SHA1 digest
 |`truncated` |Non-empty (e.g. `length`) if the file was truncated by Common Crawl
+|`charset` |Index `charset` field (provenance unverified; not ground truth)
+|`languages` |Index `languages` field (assumed CLD2 output; not ground truth)
+|`tld` |Top-level domain of the URL
 |===
 
 === MATCH and PATTERN Clauses
@@ -345,7 +348,9 @@ requires that at least one of the `should` clauses applies to a record.
 A `match` is an exact full string match. It may have a `case_sensitive` flag that, when
 set to `false`, allows case-insensitive matches -- the default is `true`.
 
-A `pattern` is a regular expression.
+A `pattern` is a regular expression, applied with `find()` (anchor with `^...$` for a full
+match). Multiple clauses under one `must` key are ANDed, so to accept either of two values
+use one `pattern`, e.g. `{"pattern": "^(text/html|application/xhtml\\+xml)$"}`.
 
 Both `match` and `pattern` clauses may include a `sample` element. This means that if
 there is a match or pattern-find on an element, the selector will randomly select a record
@@ -366,6 +371,22 @@ single crawl), but not nearly all of the 3 billion pages, you could use:
     }
 }
 ----
+
+=== Absent Clause
+
+`{"absent": true}` selects a record whose field is null or blank; `{"absent": false}` selects a
+present, non-blank one. A null field never matches any other clause type.
+
+[source,json]
+----
+{ "must": { "languages": [ { "absent": true } ] } }
+----
+
+=== Seed
+
+The optional top-level `seed` (a long) seeds every `sample` fraction. If omitted, one is
+generated; either way it is recorded in the run manifest (see
+xref:columnar-index.adoc#_provenance_and_run_manifest[Provenance and run manifest]).
 
 === Extensions Clause
 

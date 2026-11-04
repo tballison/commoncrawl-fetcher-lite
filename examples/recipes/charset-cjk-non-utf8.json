@@ -17,10 +17,7 @@
   "recordSelector": {
     "must": {
       "status": [{"match": "200"}],
-      "mime_detected": [
-        {"match": "text/html"},
-        {"match": "application/xhtml+xml"}
-      ]
+      "mime_detected": [{"pattern": "^(text/html|application/xhtml\\+xml)$"}]
     },
     "must_not": {
       "charset": [

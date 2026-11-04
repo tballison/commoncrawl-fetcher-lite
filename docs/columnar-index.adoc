@@ -78,6 +78,58 @@ cumulative backoff -- comparable in spirit to `BackoffHttpFetcher`'s own retry l
 fetches (these are two separate HTTP clients; widening one doesn't touch the other). This is
 not a substitute for scoping `crawlGlob` sensibly -- it buys patience, not throughput.
 
+[[rate-limiting]]
+=== Rate limiting: if everything is slow, check for 503 SlowDown
+
+If every query (or fetch) is slow, check the log for `503`/`SlowDown`. It is Common Crawl's
+per-IP rate limiting, asking you to reduce your request rate. On 2026-11-04 a laptop got 503
+SlowDown on every request to data.commoncrawl.org and S3 for hours, while the widened retries
+above made queries merely look slow (120-340 KB/s). Stop, wait (hours), then resume at a lower
+request rate (`-Dcc.duckdb.threads=1`, Fetch `numThreads` 1). Do not switch to another host or
+IP to get around it: that routes around the limit Common Crawl is asking you to respect.
+
+What the tool does about it:
+
+* *Preflight.* Before `QueryIndex`/`CountIndex` open DuckDB, they HEAD
+  `crawl-data/<crawl>/cc-index-table.paths.gz` on data.commoncrawl.org and on S3 (a fixed older
+  crawl when `crawlGlob` is a wildcard; the Parquet glob's own files can't be HEADed without a
+  list call). A 503 or 429 logs an ERROR banner and fails fast. `-Dcc.preflight=false` skips it.
+* *During the query.* DuckDB 1.3's logging records every HTTP attempt, retries included. A side
+  connection polls it every 30 s; each 503/429 is logged at WARN, and 5 within 60 s log the ERROR
+  banner and cancel the query. The end of the query logs DuckDB's request count and 503/429
+  retries (WARN when non-zero), and `manifest.json` records them under
+  `rate_limited.duckdb_requests` / `duckdb_by_status`. DuckDB 1.3 cannot truncate its in-memory
+  log, so counting stops after 200,000 requests. `-Dcc.duckdb.httpStats=false` turns this off.
+* *WARC/CDX fetches* (`BackoffHttpFetcher`, the default HTTP fetcher) log each 503/429 at WARN
+  with the host and a running count. 5 within 60 s log the ERROR banner and pause all HTTP
+  fetches in the process for 10 minutes, doubling on each later trip (capped at 24 h), instead
+  of the normal `throttleSeconds` ladder. The run summary and `manifest.json`
+  (`rate_limited.http_total`, `http_by_status`, `pauses`) give the totals. The S3 fetcher
+  (`fetcher.profile`) is not covered.
+
+The banner:
+
+----
+Common Crawl is rate-limiting this host (503 SlowDown): N in 60 s. Stop and wait (hours), then
+resume at a lower request rate (DuckDB threads=1, Fetch numThreads=1).
+----
+
+=== Bandwidth: threads and pruning
+
+Each DuckDB thread issues its own S3 range reads, and DuckDB defaults to one thread per core, so a
+scan that can't skip data will saturate a home or office link. `-Dcc.duckdb.threads=N` sets
+DuckDB's `threads` (default: unset, i.e. all cores); `-Dcc.duckdb.memoryLimit` (default `4GB`)
+caps memory. `numThreads` in the config is the WARC fetch pool and does not affect the scan.
+
+The index is sorted by `url_surtkey`: each row group covers one contiguous SURT range, so
+`url_host_tld` min/max statistics let DuckDB skip row groups. A predicate bounded to one TLD
+(`url_host_tld = 'gr'`) reads a small fraction of a crawl: measured on CC-MAIN-2026-43, `cy` read
+110 MB vs ~83 GB for a full scan of the same columns. Adding a `url_surtkey` range prunes no
+better and costs extra reads of that wide column, so bound on `url_host_tld` alone. Predicates on `url_path`, MIME or a hash sample cannot be
+skipped this way; with no TLD bound they read the needed columns for the whole crawl. Run one
+query per TLD (AND-only bounds) rather than one OR across many TLDs, and check the cost on a
+small TLD with `CountIndex` first.
+
 == Config
 
 [source,json]
@@ -131,6 +183,51 @@ Each matched row is fetched and logged exactly like a `Fetch` match -- same WARC
 fetch, same `logs/<runLabel>/extracted-urls.csv` / `urls-truncated.csv` output (see
 xref:configuration.adoc#_logging[Logging]), so `QueryIndex` and `Fetch` results accumulate into
 the same files if you point them at the same `docs.path` / `runLabel`.
+
+== Counting before fetching (CountIndex)
+
+`CountIndex` runs a GROUP BY count query you supply and prints the result as a tab-separated
+table; it never touches a WARC. Put the query in `columnarIndex.countQuery`; `${parquet}` is
+replaced by the `read_parquet(...)` source for your `crawlGlob`/`subset`, and `where` is not
+needed. `countTimeoutSeconds` (default 1800) cancels a runaway query.
+
+[source,json]
+----
+{
+  "columnarIndex": {
+    "crawlGlob": "CC-MAIN-2025-08",
+    "countQuery": "SELECT content_charset, count(*) AS n FROM ${parquet} WHERE fetch_status = 200 AND content_mime_detected = 'text/html' GROUP BY 1 ORDER BY n DESC LIMIT 30",
+    "countTimeoutSeconds": 900
+  }
+}
+----
+
+[source,bash]
+----
+java -jar commoncrawl-fetcher-lite-X.Y.Z.jar CountIndex count.json
+----
+
+== Provenance and run manifest
+
+Every successful extraction (`Fetch` and `QueryIndex`) appends one JSON line to
+`logs/<runLabel>/provenance.jsonl` (override with top-level `provenancePath`): all index
+fields (`url`, `mime`, `mime_detected`, `status`, `digest`, `length`, `offset`, `filename`,
+`charset`, `languages`, `truncated`, `redirect`), `crawl_id` (from the WARC filename),
+`sha256`, `stored_length`, `output_path`, and `http_headers` (every HTTP response header from
+the WARC record, name to list of values). A payload that recurs under several URLs is stored
+once but gets one line per URL. `redirect` is not in the columnar index and is null on
+`QueryIndex` runs.
+
+`logs/<runLabel>/manifest.json` (override with `manifestPath`) is written at start and
+rewritten at the end: the config verbatim, `seed`, tool git commit, start/end times, counts
+(including files written per `mime_detected|charset`), and `rate_limited` (503/429 counts; see
+"Rate limiting" above).
+
+== Seeded sampling
+
+Top-level `seed` seeds every `sample` fraction in `recordSelector`. If omitted, a seed is
+generated and recorded in the manifest (`seed_generated: true`). Results are reproducible only
+for a single-threaded run over the same input order (`numThreads: 1`).
 
 == Column reference
 

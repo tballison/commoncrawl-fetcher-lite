@@ -275,7 +275,8 @@ extraction and to extract them or record the URLs for truncated files.
 
 WARNING: AWS throttles download rates, especially for HTTP requests. This code is designed
 with back-off logic for the default HTTP fetcher so that it will pause if it gets a
-throttle warning from AWS. While this code is multi-threaded, it is not useful to run more
+throttle warning from AWS; repeated 503 SlowDown responses log an ERROR banner and pause all
+fetches for 10 minutes or more (see xref:columnar-index.adoc#rate-limiting[Rate limiting]). While this code is multi-threaded, it is not useful to run more
 than about 3 threads when fetching from HTTP. When running this code on AWS instances
 pulling from S3, 50 threads have been used without receiving throttling complaints.
 

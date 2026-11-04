@@ -30,7 +30,8 @@ public class RunLabelTest {
 
     @Test
     public void testExplicitRunLabelWins() throws Exception {
-        JsonNode root = json("{\"runLabel\": \"My OneNote Run\", \"docs\": {\"path\": \"/data/pdfs\"}}");
+        JsonNode root =
+                json("{\"runLabel\": \"My OneNote Run\", \"docs\": {\"path\": \"/data/pdfs\"}}");
         assertEquals("my_onenote_run", RunLabel.resolve(root));
     }
 
@@ -42,7 +43,8 @@ public class RunLabelTest {
 
     @Test
     public void testDerivedFromDocsPathTrailingSlash() throws Exception {
-        JsonNode root = json("{\"docs\": {\"path\": \"/home/tallison/data/commoncrawl/onenote/\"}}");
+        JsonNode root =
+                json("{\"docs\": {\"path\": \"/home/tallison/data/commoncrawl/onenote/\"}}");
         assertEquals("onenote", RunLabel.resolve(root));
     }
 

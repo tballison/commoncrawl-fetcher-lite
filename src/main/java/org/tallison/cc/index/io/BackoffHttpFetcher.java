@@ -21,6 +21,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URI;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -34,18 +35,26 @@ import org.apache.tika.pipes.fetcher.FetchKey;
 import org.apache.tika.pipes.fetcher.http.HttpFetcher;
 
 /**
- * We need this because it allows for back-off on 503 and it adds the protocol+host base to the
+ * We need this because it allows for back-off on 503/429 (counted and escalated to a hard pause by
+ * {@link RateLimitMonitor}) and it adds the protocol+host base to the
  * paths: {@link ExtractorConfig#CC_HTTPS_BASE}
  */
 public class BackoffHttpFetcher extends HttpFetcher {
 
     private static Logger LOGGER = LoggerFactory.getLogger(BackoffHttpFetcher.class);
+    private static final Pattern BAD_STATUS = Pattern.compile("bad status code: (\\d+)");
 
     // backoff
     private final long[] throttleSeconds;
+    private final RateLimitMonitor monitor;
 
     public BackoffHttpFetcher(long[] throttleSeconds) {
+        this(throttleSeconds, RateLimitMonitor.global());
+    }
+
+    BackoffHttpFetcher(long[] throttleSeconds, RateLimitMonitor monitor) {
         this.throttleSeconds = throttleSeconds;
+        this.monitor = monitor;
     }
 
     @Override
@@ -79,33 +88,36 @@ public class BackoffHttpFetcher extends HttpFetcher {
         int tries = 0;
         while (tries < throttleSeconds.length) {
             try {
+                monitor.awaitClearance();
                 return _fetch(fetchKey, metadata);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new IOException("interrupted during rate-limit pause", e);
             } catch (IOException e) {
-                if (e.getMessage() == null) {
+                int status = statusOf(e);
+                boolean isThrottle =
+                        RateLimitMonitor.isRateLimitStatus(status)
+                                || (status == 403 && e.getMessage().contains("too much traffic"));
+                if (!isThrottle) {
                     throw e;
                 }
-                Matcher m = Pattern.compile("bad status code: (\\d+)").matcher(e.getMessage());
-                boolean isThrottle = m.find()
-                        && (m.group(1).equals("503")
-                                || (m.group(1).equals("403")
-                                        && e.getMessage().contains("too much traffic")));
-                if (isThrottle) {
-                    long sleepMs = 1000 * throttleSeconds[tries];
-                    LOGGER.warn(
-                            "got backoff warning (#{}) for {}. Will sleep {} seconds. "
-                                    + "Message: {}. ",
-                            tries + 1,
-                            fetchKey.getFetchKey(),
-                            throttleSeconds[tries],
-                            e.getMessage());
-                    // sleep, back off
-                    try {
-                        Thread.sleep(sleepMs);
-                    } catch (InterruptedException ex) {
-                        throw new RuntimeException(ex);
-                    }
-                } else {
-                    throw e;
+                monitor.record(hostOf(fetchKey.getFetchKey()), status);
+                if (monitor.pauseRemainingMs() > 0) {
+                    // the hard pause replaces the ladder step; awaitClearance() waits it out
+                    tries++;
+                    continue;
+                }
+                LOGGER.warn(
+                        "got backoff warning (#{}) for {}. Will sleep {} seconds. Message: {}. ",
+                        tries + 1,
+                        fetchKey.getFetchKey(),
+                        throttleSeconds[tries],
+                        e.getMessage());
+                try {
+                    Thread.sleep(1000 * throttleSeconds[tries]);
+                } catch (InterruptedException ex) {
+                    Thread.currentThread().interrupt();
+                    throw new IOException("interrupted during backoff", ex);
                 }
             } catch (TikaException e) {
                 throw new IOException(e);
@@ -113,6 +125,24 @@ public class BackoffHttpFetcher extends HttpFetcher {
             tries++;
         }
         throw new ThrottleException();
+    }
+
+    /** HTTP status from HttpFetcher's "bad status code: NNN" message, or -1. */
+    static int statusOf(IOException e) {
+        if (e.getMessage() == null) {
+            return -1;
+        }
+        Matcher m = BAD_STATUS.matcher(e.getMessage());
+        return m.find() ? Integer.parseInt(m.group(1)) : -1;
+    }
+
+    static String hostOf(String url) {
+        try {
+            String host = URI.create(url).getHost();
+            return host == null ? url : host;
+        } catch (IllegalArgumentException e) {
+            return url;
+        }
     }
 
     private TikaInputStream _fetch(FetchKey fetchKey, Metadata metadata)

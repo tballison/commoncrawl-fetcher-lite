@@ -39,11 +39,11 @@ public class RecordSelector {
 
         for (Map.Entry<String, List<SelectorClause>> e : must_not.entrySet()) {
             String val = getStringValue(e.getKey(), record);
-            if (val == null) {
-                LOGGER.debug("Value is null for '{}' in the must not clause", e.getKey());
-                continue;
-            }
             for (SelectorClause clause : e.getValue()) {
+                if (val == null && !clause.evaluatesNull()) {
+                    LOGGER.debug("Value is null for '{}' in the must not clause", e.getKey());
+                    continue;
+                }
                 if (clause.select(val)) {
                     return false;
                 }
@@ -52,13 +52,13 @@ public class RecordSelector {
 
         for (Map.Entry<String, List<SelectorClause>> e : must.entrySet()) {
             String val = getStringValue(e.getKey(), record);
-            if (val == null) {
-                LOGGER.warn(
-                        "Value is null for '{}' in the must clause. Record not selected.",
-                        e.getKey());
-                return false;
-            }
             for (SelectorClause clause : e.getValue()) {
+                if (val == null && !clause.evaluatesNull()) {
+                    LOGGER.debug(
+                            "Value is null for '{}' in the must clause. Record not selected.",
+                            e.getKey());
+                    return false;
+                }
                 if (!clause.select(val)) {
                     return false;
                 }
@@ -69,19 +69,33 @@ public class RecordSelector {
         }
         for (Map.Entry<String, List<SelectorClause>> e : should.entrySet()) {
             String val = getStringValue(e.getKey(), record);
-            if (val == null) {
-                LOGGER.debug(
-                        "Value is null for '{}' in the should clause. Record not selected",
-                        e.getKey());
-                continue;
-            }
             for (SelectorClause clause : e.getValue()) {
+                if (val == null && !clause.evaluatesNull()) {
+                    continue;
+                }
                 if (clause.select(val)) {
                     return true;
                 }
             }
         }
         return false;
+    }
+
+    /**
+     * Seeds every sampling clause (clause i gets seed + i, in config order) so that sampling is
+     * reproducible for a single-threaded run over the same input order.
+     */
+    public void applySeed(long seed) {
+        int i = 0;
+        for (Map<String, List<SelectorClause>> m : List.of(must_not, must, should)) {
+            for (List<SelectorClause> clauses : m.values()) {
+                for (SelectorClause clause : clauses) {
+                    if (clause instanceof AbstractSamplingSelector) {
+                        ((AbstractSamplingSelector) clause).reseed(seed + i++);
+                    }
+                }
+            }
+        }
     }
 
     private String getStringValue(String key, CCIndexRecord record) {
@@ -102,25 +116,15 @@ public class RecordSelector {
             case "digest":
                 return record.getDigest();
             case "charset":
-                // HTTP-declared charset (Content-Type charset parameter or
-                // <meta charset>) as captured by the crawler.  Not run
-                // through any charset detector — pure declaration.
+                // Index charset field; provenance (header vs. meta vs. detector) unverified.
                 return record.getCharset();
             case "languages":
-                // Comma-separated list of languages declared via HTML lang=
-                // attribute or Content-Language header.  Pure declaration.
+                // Comma-separated; assumed CLD2 output, not ground truth.
                 return record.getLanguages();
             case "tld":
                 return CCIndexRecord.getTLD(record.getUrl());
             default:
                 throw new IllegalArgumentException("Don't yet support key " + key);
-        }
-    }
-
-    private static class AcceptAllRecords extends RecordSelector {
-        @Override
-        public boolean select(CCIndexRecord record) {
-            return true;
         }
     }
 }

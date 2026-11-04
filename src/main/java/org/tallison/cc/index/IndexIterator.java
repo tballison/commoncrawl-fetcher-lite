@@ -175,9 +175,7 @@ public class IndexIterator extends PipesIterator implements Initializable {
         }
     }
 
-    /**
-     * Returns the number of resolved index files after initialization.
-     */
+    /** Returns the number of resolved index files after initialization. */
     public int getResolvedIndexFileCount() {
         return resolvedIndexFiles.size();
     }
