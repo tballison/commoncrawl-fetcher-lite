@@ -74,9 +74,9 @@ public class RunManifest {
 
     public void finish(CCIndexReaderCounter counter, String status) {
         if (rateLimits.getTotal() > 0) {
-            LOGGER.warn("Common Crawl HTTP {}", rateLimits);
+            LOGGER.warn("Common Crawl HTTP/S3 {}", rateLimits);
         } else {
-            LOGGER.info("Common Crawl HTTP: no 503/429 responses");
+            LOGGER.info("Common Crawl HTTP/S3: no 503/429 responses");
         }
         write(Instant.now(), counter, status);
     }
@@ -119,6 +119,10 @@ public class RunManifest {
         ObjectNode byStatus = rl.putObject("http_by_status");
         for (Map.Entry<Integer, Long> e : rateLimits.getByStatus().entrySet()) {
             byStatus.put(String.valueOf(e.getKey()), e.getValue());
+        }
+        ObjectNode byHost = rl.putObject("by_host");
+        for (Map.Entry<String, Long> e : rateLimits.getByHost().entrySet()) {
+            byHost.put(e.getKey(), e.getValue());
         }
         rl.put("pauses", rateLimits.getTrips());
         if (duckDbRequests >= 0) {

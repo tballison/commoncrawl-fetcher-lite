@@ -209,7 +209,10 @@ are fetched over HTTPS from `https://data.commoncrawl.org/` with default throttl
 ----
 
 To fetch the individual WARCs from S3, a fetcher must be defined and it must contain a
-`profile` element:
+`profile` element (an AWS profile name; on EC2 with an instance role, a profile whose
+`credential_process` is `aws configure export-credentials --format process` works). S3 503
+SlowDown/429 responses go into the same process-wide rate-limit monitor as HTTP (see
+columnar-index.adoc, "Rate limiting"); `throttleSeconds` is the per-request retry ladder:
 
 [source,json]
 ----

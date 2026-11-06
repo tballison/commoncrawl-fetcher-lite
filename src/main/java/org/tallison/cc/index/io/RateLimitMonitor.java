@@ -51,6 +51,7 @@ public class RateLimitMonitor {
     private final long windowMs;
     private final ArrayDeque<Long> window = new ArrayDeque<>();
     private final Map<Integer, Long> byStatus = new TreeMap<>();
+    private final Map<String, Long> byHost = new TreeMap<>();
     private long total = 0;
     private int trips = 0;
     private long nextPauseMs;
@@ -63,7 +64,7 @@ public class RateLimitMonitor {
         this.nextPauseMs = initialPauseMs;
     }
 
-    /** Shared by every {@link BackoffHttpFetcher} in the process. */
+    /** Shared by every {@link BackoffHttpFetcher} and {@link BackoffS3Fetcher} in the process. */
     public static RateLimitMonitor global() {
         return GLOBAL;
     }
@@ -94,6 +95,7 @@ public class RateLimitMonitor {
         long now = clock.getAsLong();
         total += n;
         byStatus.merge(status, n, Long::sum);
+        byHost.merge(host, n, Long::sum);
         for (long i = 0; i < n; i++) {
             window.addLast(now);
         }
@@ -118,8 +120,8 @@ public class RateLimitMonitor {
         pauseUntil = now + pauseMs;
         LOGGER.error(banner(window.size(), windowMs));
         LOGGER.error(
-                "pausing all Common Crawl HTTP requests for {} min (pause #{}; the next one "
-                        + "doubles)",
+                "pausing all Common Crawl requests (HTTP and S3, every fetch thread) for {} min "
+                        + "(pause #{}; the next one doubles)",
                 TimeUnit.MILLISECONDS.toMinutes(pauseMs),
                 trips);
         window.clear();
@@ -150,8 +152,13 @@ public class RateLimitMonitor {
         return new TreeMap<>(byStatus);
     }
 
+    public synchronized Map<String, Long> getByHost() {
+        return new TreeMap<>(byHost);
+    }
+
     @Override
     public synchronized String toString() {
-        return "rate-limited responses: " + total + " " + byStatus + ", pauses: " + trips;
+        return "rate-limited responses: " + total + " " + byStatus + " " + byHost + ", pauses: "
+                + trips;
     }
 }

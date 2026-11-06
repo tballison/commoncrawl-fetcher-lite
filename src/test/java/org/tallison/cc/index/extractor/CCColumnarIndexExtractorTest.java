@@ -131,4 +131,35 @@ public class CCColumnarIndexExtractorTest {
             assertEquals("cs\tn\na\t2\nb\t1\n", CCColumnarIndexExtractor.formatTable(rs));
         }
     }
+    @Test
+    public void testRetrySettings() throws Exception {
+        assertEquals(
+                java.util.List.of(
+                        "SET http_retries = 12;",
+                        "SET http_retry_wait_ms = 2000;",
+                        "SET http_retry_backoff = 1.5;"),
+                CCColumnarIndexExtractor.retrySettings());
+        System.setProperty("cc.duckdb.httpRetries", "5");
+        System.setProperty("cc.duckdb.httpRetryWaitMs", "500");
+        System.setProperty("cc.duckdb.httpRetryBackoff", "2");
+        try {
+            assertEquals(
+                    java.util.List.of(
+                            "SET http_retries = 5;",
+                            "SET http_retry_wait_ms = 500;",
+                            "SET http_retry_backoff = 2.0;"),
+                    CCColumnarIndexExtractor.retrySettings());
+            System.setProperty("cc.duckdb.httpRetryBackoff", "0.5");
+            org.junit.jupiter.api.Assertions.assertThrows(
+                    java.sql.SQLException.class, CCColumnarIndexExtractor::retrySettings);
+            System.setProperty("cc.duckdb.httpRetryBackoff", "2");
+            System.setProperty("cc.duckdb.httpRetries", "x");
+            org.junit.jupiter.api.Assertions.assertThrows(
+                    java.sql.SQLException.class, CCColumnarIndexExtractor::retrySettings);
+        } finally {
+            System.clearProperty("cc.duckdb.httpRetries");
+            System.clearProperty("cc.duckdb.httpRetryWaitMs");
+            System.clearProperty("cc.duckdb.httpRetryBackoff");
+        }
+    }
 }

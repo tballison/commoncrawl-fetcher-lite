@@ -25,6 +25,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.Executors;
@@ -38,15 +39,17 @@ import org.tallison.cc.index.io.RateLimitMonitor;
 /**
  * Surfaces DuckDB httpfs retries. DuckDB logs every HTTP attempt (retries included) when logging
  * is on; a side connection polls those logs during the query, feeds 503/429s into a {@link
- * RateLimitMonitor} and cancels the query when it trips. {@code -Dcc.duckdb.httpStats=false}
- * turns this off.
+ * RateLimitMonitor} and cancels the query when it trips. DuckDB 1.3 has no log truncation call, so
+ * every {@link #TRUNCATE_AT} logged requests the counts are banked and the log is cleared by
+ * switching its storage (requests in that brief window are not counted). {@code
+ * -Dcc.duckdb.httpStats=false} turns this off.
  */
 class DuckDbHttpStats implements AutoCloseable {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(DuckDbHttpStats.class);
 
-    // DuckDB 1.3 can't truncate its in-memory log; stop logging past this to bound memory.
-    static final long MAX_LOGGED_REQUESTS = 200_000;
+    // bank the counts and clear DuckDB's in-memory log past this many entries
+    static final long TRUNCATE_AT = 20_000;
 
     private static final Pattern STATUS = Pattern.compile("(\\d{3})$");
 
@@ -59,10 +62,13 @@ class DuckDbHttpStats implements AutoCloseable {
     private final Statement query;
     private final RateLimitMonitor monitor;
     private final ScheduledExecutorService poller;
+    // "host status" -> count: banked from cleared logs, and last seen in the live log
+    private final Map<String, Long> banked = new HashMap<>();
     private final Map<String, Long> seen = new HashMap<>();
+    private long bankedRequests = 0;
     private long totalRequests = 0;
     private volatile boolean tripped = false;
-    private boolean capped = false;
+    long truncateAt = TRUNCATE_AT;
 
     private DuckDbHttpStats(
             Connection side, Statement query, RateLimitMonitor monitor, long pollMs) {
@@ -120,6 +126,15 @@ class DuckDbHttpStats implements AutoCloseable {
     }
 
     synchronized void poll() throws SQLException {
+        long live = snapshot();
+        totalRequests = bankedRequests + live;
+        if (live >= truncateAt) {
+            truncate();
+        }
+    }
+
+    /** Reads the live log, feeds new 503/429s to the monitor; returns the live entry count. */
+    private long snapshot() throws SQLException {
         long total = 0;
         try (Statement st = side.createStatement();
                 ResultSet rs = st.executeQuery(SNAPSHOT_SQL)) {
@@ -131,8 +146,9 @@ class DuckDbHttpStats implements AutoCloseable {
                     continue;
                 }
                 String host = rs.getString("host");
-                long delta = n - seen.getOrDefault(host + " " + status, 0L);
-                seen.put(host + " " + status, n);
+                String k = host + " " + status;
+                long delta = n - seen.getOrDefault(k, 0L);
+                seen.put(k, n);
                 if (monitor.record("DuckDB " + host, status, delta) && !tripped) {
                     tripped = true;
                     LOGGER.error("cancelling the DuckDB query: Common Crawl is rate-limiting");
@@ -144,16 +160,24 @@ class DuckDbHttpStats implements AutoCloseable {
                 }
             }
         }
-        totalRequests = total;
-        if (!capped && total > MAX_LOGGED_REQUESTS) {
-            capped = true;
-            try (Statement st = side.createStatement()) {
-                st.execute("SET enable_logging = false;");
+        return total;
+    }
+
+    /** Banks the live counts and clears the log (logging off while storage is swapped). */
+    private void truncate() throws SQLException {
+        try (Statement st = side.createStatement()) {
+            st.execute("SET enable_logging = false;");
+            long live = snapshot();
+            st.execute("SET logging_storage = 'stdout';");
+            st.execute("SET logging_storage = 'memory';");
+            st.execute("SET enable_logging = true;");
+            bankedRequests += live;
+            for (Map.Entry<String, Long> e : seen.entrySet()) {
+                banked.merge(e.getKey(), e.getValue(), Long::sum);
             }
-            LOGGER.warn(
-                    "DuckDB HTTP stats stopped after {} requests to bound log memory; "
-                            + "503/429s after this are not counted",
-                    total);
+            seen.clear();
+            totalRequests = bankedRequests;
+            LOGGER.debug("DuckDB HTTP log cleared after {} requests", bankedRequests);
         }
     }
 
@@ -168,10 +192,12 @@ class DuckDbHttpStats implements AutoCloseable {
 
     Map<Integer, Long> rateLimitedByStatus() {
         Map<Integer, Long> out = new TreeMap<>();
-        for (Map.Entry<String, Long> e : seen.entrySet()) {
-            String k = e.getKey();
-            int status = Integer.parseInt(k.substring(k.lastIndexOf(' ') + 1));
-            out.merge(status, e.getValue(), Long::sum);
+        for (Map<String, Long> m : List.of(banked, seen)) {
+            for (Map.Entry<String, Long> e : m.entrySet()) {
+                String k = e.getKey();
+                int status = Integer.parseInt(k.substring(k.lastIndexOf(' ') + 1));
+                out.merge(status, e.getValue(), Long::sum);
+            }
         }
         return out;
     }

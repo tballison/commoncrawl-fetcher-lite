@@ -27,6 +27,7 @@ import org.junit.jupiter.api.Test;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.sql.DriverManager;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Map;
@@ -71,6 +72,46 @@ public class DuckDbHttpStatsTest {
             assertEquals(4, stats.getTotalRequests());
             assertEquals(4, m.getTotal());
             assertTrue(stats.isTripped());
+        } finally {
+            server.stop(0);
+        }
+    }
+    @Test
+    public void testClearingTheLogKeepsCounts() throws Exception {
+        HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext(
+                "/",
+                ex -> {
+                    ex.sendResponseHeaders(503, -1);
+                    ex.close();
+                });
+        server.start();
+        RateLimitMonitor m = new RateLimitMonitor(System::currentTimeMillis, 100, 60_000, 600_000);
+        try (DuckDBConnection conn =
+                        (DuckDBConnection) DriverManager.getConnection("jdbc:duckdb:");
+                Statement st = conn.createStatement()) {
+            st.execute("LOAD httpfs; SET http_retries = 3; SET http_retry_wait_ms = 10;");
+            DuckDbHttpStats stats = DuckDbHttpStats.start(conn, st, m, 0);
+            stats.truncateAt = 2;
+            String url = "http://127.0.0.1:" + server.getAddress().getPort() + "/x.parquet";
+            for (int i = 0; i < 2; i++) {
+                // DuckDB's JDBC closes a statement that failed
+                Statement q = conn.createStatement();
+                assertThrows(
+                        SQLException.class,
+                        () -> q.executeQuery("SELECT count(*) FROM read_parquet('" + url + "')"));
+                stats.poll();
+                try (Statement c = conn.createStatement();
+                        ResultSet rs =
+                                c.executeQuery("SELECT count(*) FROM duckdb_logs_parsed('HTTP')")) {
+                    rs.next();
+                    assertEquals(0, rs.getLong(1), "log cleared after each poll");
+                }
+            }
+            stats.close();
+            assertEquals(Map.of(503, 8L), stats.rateLimitedByStatus());
+            assertEquals(8, stats.getTotalRequests());
+            assertEquals(8, m.getTotal());
         } finally {
             server.stop(0);
         }

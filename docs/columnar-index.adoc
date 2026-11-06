@@ -71,11 +71,14 @@ column-pruned single-crawl query); `QueryIndex` does not use it.
 
 DuckDB's httpfs defaults (`http_retries=3`, `http_retry_wait_ms=100`, `http_retry_backoff=4`)
 give well under 2 seconds of total backoff on a failed HTTP read -- fine for a handful of
-files, not enough to ride out sustained S3 throttling on a broad query. `QueryIndex` widens
-this itself (`http_retries=12`, `http_retry_wait_ms=2000`, `http_retry_backoff=2`, in
-`CCColumnarIndexExtractor`) before running any query, giving each failed read up to ~2 hours of
-cumulative backoff -- comparable in spirit to `BackoffHttpFetcher`'s own retry ladder for WARC
-fetches (these are two separate HTTP clients; widening one doesn't touch the other). This is
+files, not enough to ride out sustained S3 throttling on a broad query. `QueryIndex` and
+`CountIndex` widen this before running any query: `http_retries=12`, `http_retry_wait_ms=2000`,
+`http_retry_backoff=1.5`, i.e. waits of 2 s growing to ~3 min, ~9 min in total per failed read.
+Override with `-Dcc.duckdb.httpRetries`, `-Dcc.duckdb.httpRetryWaitMs` and
+`-Dcc.duckdb.httpRetryBackoff` (1-10). The earlier backoff of 2 allowed ~2.3 h on one request:
+on 2026-11-05 a single SlowDown near the end of a scan parked queries for an hour or more with no
+sockets open, which looked like a hang. Better to fail in minutes and rerun when S3 is quieter.
+These are separate from `BackoffHttpFetcher`'s ladder for WARC fetches. This is
 not a substitute for scoping `crawlGlob` sensibly -- it buys patience, not throughput.
 
 [[rate-limiting]]
@@ -98,14 +101,26 @@ What the tool does about it:
   connection polls it every 30 s; each 503/429 is logged at WARN, and 5 within 60 s log the ERROR
   banner and cancel the query. The end of the query logs DuckDB's request count and 503/429
   retries (WARN when non-zero), and `manifest.json` records them under
-  `rate_limited.duckdb_requests` / `duckdb_by_status`. DuckDB 1.3 cannot truncate its in-memory
-  log, so counting stops after 200,000 requests. `-Dcc.duckdb.httpStats=false` turns this off.
+  `rate_limited.duckdb_requests` / `duckdb_by_status`. DuckDB 1.3 has no call to truncate its
+  in-memory log, so every 20,000 entries the counts are banked and the log is cleared by switching
+  its storage (requests in that instant are not counted); a crawl-wide scan stays countable.
+  Caveat (2026-11-05, in-region over `s3://`): DuckDB sat in httpfs retry backoff (no open sockets,
+  a worker in `nanosleep`) while an `aws s3api get-object` on the same prefix got SlowDown, and
+  these stats logged no 503s. Until that is explained, treat a query that stops reading with no
+  sockets open as rate-limited.
+  `-Dcc.duckdb.httpStats=false` turns this off.
 * *WARC/CDX fetches* (`BackoffHttpFetcher`, the default HTTP fetcher) log each 503/429 at WARN
   with the host and a running count. 5 within 60 s log the ERROR banner and pause all HTTP
   fetches in the process for 10 minutes, doubling on each later trip (capped at 24 h), instead
   of the normal `throttleSeconds` ladder. The run summary and `manifest.json`
-  (`rate_limited.http_total`, `http_by_status`, `pauses`) give the totals. The S3 fetcher
-  (`fetcher.profile`) is not covered.
+  (`rate_limited.http_total`, `http_by_status`, `by_host`, `pauses`) give the totals.
+* *S3 WARC/CDX fetches* (`fetcher.profile`, `BackoffS3Fetcher`) feed the same process-wide
+  monitor: an S3 503 SlowDown or 429 (found anywhere in the exception's cause chain) is counted
+  under host `s3://commoncrawl`, and every fetch thread waits out a pause before its next request,
+  so one thread's 503s pause all of them. The wrapped Tika `S3Fetcher` makes one attempt per call;
+  `throttleSeconds` is the retry ladder. In-region on 2026-11-05: 16 fetch threads drew ~30
+  SlowDowns/min, 8 and 4 each tripped the pause within a minute, 2 ran without one. Start at 4 and
+  halve on a pause.
 
 The banner:
 

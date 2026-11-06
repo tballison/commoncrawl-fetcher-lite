@@ -30,6 +30,7 @@ import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -160,9 +161,11 @@ public class CCColumnarIndexExtractor {
             // the retry budget to something in the spirit of BackoffHttpFetcher's
             // ladder (this doesn't touch that class -- DuckDB's S3 reads for the
             // Parquet index are a separate HTTP client from the WARC/CDX fetches).
-            setup.execute("SET http_retries = 12;");
-            setup.execute("SET http_retry_wait_ms = 2000;");
-            setup.execute("SET http_retry_backoff = 2;");
+            // Backoff 2 made one throttled request wait up to ~2.3 h with no sockets open
+            // (2026-11-05), so the default curve is capped: ~9 min total, longest ~3 min.
+            for (String sql : retrySettings()) {
+                setup.execute(sql);
+            }
             // DuckDB defaults to 80% of RAM; a crawl-wide scan that reads a wide column
             // (e.g. url) can then take the whole box. -Dcc.duckdb.memoryLimit overrides.
             String mem = System.getProperty("cc.duckdb.memoryLimit", "4GB");
@@ -179,6 +182,44 @@ public class CCColumnarIndexExtractor {
                 setup.execute("SET threads=" + threads + ";");
             }
         }
+    }
+
+    static final int DEFAULT_HTTP_RETRIES = 12;
+    static final long DEFAULT_HTTP_RETRY_WAIT_MS = 2000;
+    static final double DEFAULT_HTTP_RETRY_BACKOFF = 1.5;
+
+    /**
+     * httpfs retry settings from -Dcc.duckdb.httpRetries / httpRetryWaitMs / httpRetryBackoff.
+     * Wait before retry n (0-based) is waitMs * backoff^n.
+     */
+    static List<String> retrySettings() throws SQLException {
+        int retries = intProp("cc.duckdb.httpRetries", DEFAULT_HTTP_RETRIES);
+        long waitMs = intProp("cc.duckdb.httpRetryWaitMs", (int) DEFAULT_HTTP_RETRY_WAIT_MS);
+        double backoff;
+        String b = System.getProperty("cc.duckdb.httpRetryBackoff");
+        try {
+            backoff = b == null ? DEFAULT_HTTP_RETRY_BACKOFF : Double.parseDouble(b);
+        } catch (NumberFormatException e) {
+            throw new SQLException("bad cc.duckdb.httpRetryBackoff: " + b);
+        }
+        if (backoff < 1 || backoff > 10) {
+            throw new SQLException("bad cc.duckdb.httpRetryBackoff: " + b);
+        }
+        return List.of(
+                "SET http_retries = " + retries + ";",
+                "SET http_retry_wait_ms = " + waitMs + ";",
+                "SET http_retry_backoff = " + backoff + ";");
+    }
+
+    private static int intProp(String name, int dflt) throws SQLException {
+        String v = System.getProperty(name);
+        if (v == null) {
+            return dflt;
+        }
+        if (!v.matches("\\d{1,7}")) {
+            throw new SQLException("bad " + name + ": " + v);
+        }
+        return Integer.parseInt(v);
     }
 
     private static void execute(ExtractorConfig fetcherConfig) throws Exception {

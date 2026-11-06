@@ -32,6 +32,7 @@ import java.util.concurrent.ThreadLocalRandom;
 
 import org.tallison.cc.index.IndexIterator;
 import org.tallison.cc.index.io.BackoffHttpFetcher;
+import org.tallison.cc.index.io.BackoffS3Fetcher;
 import org.tallison.cc.index.io.TargetPathRewriter;
 import org.tallison.cc.index.selector.RecordSelector;
 
@@ -386,12 +387,13 @@ public class ExtractorConfig {
         Fetcher newFetcher() throws TikaConfigException {
             Fetcher fetcher;
             if (profile != null) {
-                fetcher = new S3Fetcher();
-                ((S3Fetcher) fetcher).setProfile(profile);
-                ((S3Fetcher) fetcher).setCredentialsProvider("profile");
-                ((S3Fetcher) fetcher).setBucket(ExtractorConfig.CC_S3_BUCKET);
-                ((S3Fetcher) fetcher).setRegion(ExtractorConfig.CC_REGION);
-                ((S3Fetcher) fetcher).setThrottleSeconds(throttleSeconds);
+                S3Fetcher s3 = new S3Fetcher();
+                s3.setProfile(profile);
+                s3.setCredentialsProvider("profile");
+                s3.setBucket(ExtractorConfig.CC_S3_BUCKET);
+                s3.setRegion(ExtractorConfig.CC_REGION);
+                s3.initialize(Collections.EMPTY_MAP);
+                fetcher = BackoffS3Fetcher.wrap(s3, throttleSeconds);
             } else if (basePath != null) {
                 fetcher = new FileSystemFetcher();
                 ((FileSystemFetcher) fetcher).setBasePath(basePath);

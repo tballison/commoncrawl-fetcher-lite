@@ -35,6 +35,20 @@ request to slow down:
   "rate-limited by ...", and `rate_limited` in `logs/<runLabel>/manifest.json`.
 - QueryIndex/CountIndex preflight-HEAD a small object and refuse to start on 503/429
   (`-Dcc.preflight=false` overrides); during a query, 5 DuckDB 503/429 retries in 60 s cancel it.
-  The default HTTP fetcher pauses all fetches 10 min (doubling) after 5 in 60 s.
+  DuckDB's HTTP log is cleared as it goes, so crawl-wide scans stay counted (no 200k cap). But in-region
+  S3 SlowDown retries went uncounted on 2026-11-05: a query that stops reading with no sockets open is
+  DuckDB backing off -- treat it as rate-limiting. DuckDB retries each failed read 12 times, waiting
+  2 s x 1.5^n (~9 min total, longest ~3 min); `-Dcc.duckdb.httpRetries`, `httpRetryWaitMs`,
+  `httpRetryBackoff` override. For unattended runs, gate each attempt on a 1 KB GetObject probe of
+  an index file and sleep when it returns SlowDown.
+- Fetch over HTTP or S3 (`fetcher.profile`): 5 503/429s in 60 s from any thread pause every fetch
+  thread 10 min (doubling); S3 SlowDowns count under `s3://commoncrawl` in `manifest.json`.
+
+## In-region (EC2 us-east-1, S3)
+
+The laptop limits above are for a home link. In-region the scan is latency-bound: DuckDB threads 8
+on 4 vCPUs read ~48 MB/s with no 503s (2 threads: ~14 MB/s). Fetch `numThreads` 4 to start (on
+2026-11-05, 16 drew ~30 SlowDowns/min and 8 and 4 tripped the pause; 2 did not); halve on a
+pause, don't move hosts. Fetch runs one worker per CDX file, so split a CDX batch into >= numThreads files.
 
 See docs/columnar-index.adoc, "Bandwidth: threads and pruning" and "Rate limiting".
