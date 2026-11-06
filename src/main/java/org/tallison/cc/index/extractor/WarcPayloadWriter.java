@@ -36,11 +36,10 @@ import org.tallison.cc.index.CCIndexReaderCounter;
 import org.tallison.cc.index.CCIndexRecord;
 import org.tallison.cc.index.io.TargetPathRewriter;
 
-import org.apache.tika.exception.TikaException;
 import org.apache.tika.io.TikaInputStream;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.parser.ParseContext;
-import org.apache.tika.pipes.emitter.StreamEmitter;
+import org.apache.tika.pipes.api.emitter.StreamEmitter;
 
 /**
  * Extracts a payload from a WARC record, verifies its digest against the CC index, computes a
@@ -116,7 +115,7 @@ class WarcPayloadWriter {
             try (InputStream is = TikaInputStream.get(tmp, new Metadata())) {
                 emitter.emit(targetPath, is, new Metadata(), new ParseContext());
                 logSuccess(ccIndexRecord, targetDigest, length, targetPath);
-            } catch (IOException | TikaException e) {
+            } catch (IOException e) {
                 LOGGER.warn("problem writing id={}", id, e);
             }
         } finally {

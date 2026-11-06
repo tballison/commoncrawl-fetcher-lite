@@ -27,23 +27,17 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Collections;
 import java.util.concurrent.ThreadLocalRandom;
 
 import org.tallison.cc.index.IndexIterator;
-import org.tallison.cc.index.io.BackoffHttpFetcher;
 import org.tallison.cc.index.io.BackoffS3Fetcher;
 import org.tallison.cc.index.io.TargetPathRewriter;
+import org.tallison.cc.index.io.TikaPipes;
 import org.tallison.cc.index.selector.RecordSelector;
 
-import org.apache.tika.config.Initializable;
 import org.apache.tika.exception.TikaConfigException;
-import org.apache.tika.pipes.emitter.StreamEmitter;
-import org.apache.tika.pipes.emitter.fs.FileSystemEmitter;
-import org.apache.tika.pipes.emitter.s3.S3Emitter;
-import org.apache.tika.pipes.fetcher.Fetcher;
-import org.apache.tika.pipes.fetcher.fs.FileSystemFetcher;
-import org.apache.tika.pipes.fetcher.s3.S3Fetcher;
+import org.apache.tika.pipes.api.emitter.StreamEmitter;
+import org.apache.tika.pipes.api.fetcher.Fetcher;
 import org.apache.tika.utils.StringUtils;
 
 // Tolerate unknown top-level fields -- config files across this repo use a "_comment" key
@@ -385,25 +379,14 @@ public class ExtractorConfig {
         }
 
         Fetcher newFetcher() throws TikaConfigException {
-            Fetcher fetcher;
             if (profile != null) {
-                S3Fetcher s3 = new S3Fetcher();
-                s3.setProfile(profile);
-                s3.setCredentialsProvider("profile");
-                s3.setBucket(ExtractorConfig.CC_S3_BUCKET);
-                s3.setRegion(ExtractorConfig.CC_REGION);
-                s3.initialize(Collections.EMPTY_MAP);
-                fetcher = BackoffS3Fetcher.wrap(s3, throttleSeconds);
+                // single attempt; BackoffS3Fetcher owns the retry ladder
+                return BackoffS3Fetcher.wrap(
+                        TikaPipes.newCCS3Fetcher(profile, null), throttleSeconds);
             } else if (basePath != null) {
-                fetcher = new FileSystemFetcher();
-                ((FileSystemFetcher) fetcher).setBasePath(basePath);
-            } else {
-                fetcher = new BackoffHttpFetcher(throttleSeconds);
+                return TikaPipes.newFileSystemFetcher(basePath);
             }
-            if (fetcher instanceof Initializable) {
-                ((Initializable) fetcher).initialize(Collections.EMPTY_MAP);
-            }
-            return fetcher;
+            return TikaPipes.newBackoffHttpFetcher(throttleSeconds);
         }
     }
 
@@ -436,25 +419,14 @@ public class ExtractorConfig {
 
         public StreamEmitter newEmitter() throws TikaConfigException {
             if (!StringUtils.isBlank(profile)) {
-                S3Emitter emitter = new S3Emitter();
-                emitter.setCredentialsProvider("profile");
-                emitter.setProfile(profile);
-
                 if (StringUtils.isBlank(bucket)) {
                     throw new TikaConfigException("Must specify a bucket for docs");
                 }
-                emitter.setBucket(bucket);
-                if (region != null) {
-                    emitter.setRegion(region);
-                } else {
-                    emitter.setRegion(ExtractorConfig.CC_REGION);
-                }
-                if (!StringUtils.isBlank(prefix)) {
-                    emitter.setPrefix(prefix);
-                }
-                emitter.setFileExtension("");
-                emitter.initialize(Collections.EMPTY_MAP);
-                return emitter;
+                return TikaPipes.newS3Emitter(
+                        profile,
+                        bucket,
+                        region != null ? region : ExtractorConfig.CC_REGION,
+                        StringUtils.isBlank(prefix) ? null : prefix);
             }
             if (StringUtils.isBlank(path)) {
                 path = DEFAULT_FS_DOCS_PATH;
@@ -468,11 +440,7 @@ public class ExtractorConfig {
                     throw new TikaConfigException("Could not create output directory: " + path, e);
                 }
             }
-            FileSystemEmitter emitter = new FileSystemEmitter();
-            emitter.setBasePath(path);
-            emitter.setOnExists("skip");
-            emitter.setFileExtension("");
-            return emitter;
+            return TikaPipes.newFileSystemEmitter(path);
         }
     }
 }

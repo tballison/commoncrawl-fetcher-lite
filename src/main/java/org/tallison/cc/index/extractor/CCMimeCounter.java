@@ -61,10 +61,9 @@ import org.apache.tika.exception.TikaException;
 import org.apache.tika.io.TikaInputStream;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.parser.ParseContext;
-import org.apache.tika.pipes.FetchEmitTuple;
-import org.apache.tika.pipes.fetcher.Fetcher;
-import org.apache.tika.pipes.pipesiterator.CallablePipesIterator;
-import org.apache.tika.pipes.pipesiterator.PipesIterator;
+import org.apache.tika.pipes.api.FetchEmitTuple;
+import org.apache.tika.pipes.api.fetcher.Fetcher;
+import org.apache.tika.pipes.api.pipesiterator.PipesIterator;
 import org.apache.tika.utils.StringUtils;
 
 /**
@@ -98,8 +97,8 @@ public class CCMimeCounter {
                 new ExecutorCompletionService<>(executorService);
 
         IndexIterator indexIterator = fetcherConfig.getIndexIterator();
-        indexIterator.initialize(Collections.EMPTY_MAP);
-        executorCompletionService.submit(new CallablePipesIterator(indexIterator, indexFileQueue));
+        indexIterator.initialize();
+        executorCompletionService.submit(indexIterator.newProducer(indexFileQueue));
         CCIndexReaderCounter counter = new CCIndexReaderCounter();
         counter.setTotalIndexFiles(indexIterator.getResolvedIndexFileCount());
         LOGGER.info(

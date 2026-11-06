@@ -23,7 +23,6 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.Collections;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
@@ -39,11 +38,10 @@ import org.tallison.cc.index.IndexIterator;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.parser.ParseContext;
-import org.apache.tika.pipes.FetchEmitTuple;
-import org.apache.tika.pipes.emitter.StreamEmitter;
-import org.apache.tika.pipes.fetcher.Fetcher;
-import org.apache.tika.pipes.pipesiterator.CallablePipesIterator;
-import org.apache.tika.pipes.pipesiterator.PipesIterator;
+import org.apache.tika.pipes.api.FetchEmitTuple;
+import org.apache.tika.pipes.api.emitter.StreamEmitter;
+import org.apache.tika.pipes.api.fetcher.Fetcher;
+import org.apache.tika.pipes.api.pipesiterator.PipesIterator;
 
 /**
  * This class fetches index files from aws to a local file share.
@@ -72,8 +70,8 @@ public class CCIndexFetcher {
                 new ExecutorCompletionService<>(executorService);
 
         IndexIterator indexIterator = fetcherConfig.getIndexIterator();
-        indexIterator.initialize(Collections.EMPTY_MAP);
-        executorCompletionService.submit(new CallablePipesIterator(indexIterator, indexFileQueue));
+        indexIterator.initialize();
+        executorCompletionService.submit(indexIterator.newProducer(indexFileQueue));
         int finishedWorkers = 0;
         try {
             for (int i = 0; i < fetcherConfig.getNumThreads(); i++) {

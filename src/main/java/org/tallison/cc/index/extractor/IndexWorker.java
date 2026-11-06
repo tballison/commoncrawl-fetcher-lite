@@ -38,9 +38,9 @@ import org.apache.tika.exception.TikaException;
 import org.apache.tika.io.TikaInputStream;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.parser.ParseContext;
-import org.apache.tika.pipes.FetchEmitTuple;
-import org.apache.tika.pipes.fetcher.Fetcher;
-import org.apache.tika.pipes.pipesiterator.PipesIterator;
+import org.apache.tika.pipes.api.FetchEmitTuple;
+import org.apache.tika.pipes.api.fetcher.Fetcher;
+import org.apache.tika.pipes.api.pipesiterator.PipesIterator;
 import org.apache.tika.utils.StringUtils;
 
 class IndexWorker implements Callable<Long> {

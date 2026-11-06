@@ -28,30 +28,26 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.TimeoutException;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.Callable;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.zip.GZIPInputStream;
 
 import org.tallison.cc.index.extractor.ExtractorConfig;
-import org.tallison.cc.index.io.BackoffHttpFetcher;
+import org.tallison.cc.index.io.TikaPipes;
 
-import org.apache.tika.config.Initializable;
-import org.apache.tika.config.Param;
 import org.apache.tika.exception.TikaConfigException;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.parser.ParseContext;
-import org.apache.tika.pipes.FetchEmitTuple;
-import org.apache.tika.pipes.emitter.EmitKey;
-import org.apache.tika.pipes.fetcher.FetchKey;
-import org.apache.tika.pipes.fetcher.Fetcher;
-import org.apache.tika.pipes.fetcher.fs.FileSystemFetcher;
-import org.apache.tika.pipes.fetcher.s3.S3Fetcher;
-import org.apache.tika.pipes.pipesiterator.PipesIterator;
+import org.apache.tika.pipes.api.FetchEmitTuple;
+import org.apache.tika.pipes.api.emitter.EmitKey;
+import org.apache.tika.pipes.api.fetcher.FetchKey;
+import org.apache.tika.pipes.api.fetcher.Fetcher;
+import org.apache.tika.pipes.api.pipesiterator.PipesIterator;
 
-public class IndexIterator extends PipesIterator implements Initializable {
+public class IndexIterator {
 
     // temporary storage of the paths this class was constructed with.
     // During initialization, we figure out if these are index list paths
@@ -59,6 +55,8 @@ public class IndexIterator extends PipesIterator implements Initializable {
     private final List<String> configuredPaths = new ArrayList<>();
     private final List<String> resolvedIndexFiles = new ArrayList<>();
 
+    private final String profile;
+    private final String basePath;
     private Fetcher fetcher = null;
 
     int maxIndexFiles = -1;
@@ -71,18 +69,8 @@ public class IndexIterator extends PipesIterator implements Initializable {
             @JsonProperty("paths") List<String> indexPaths,
             @JsonProperty("maxIndexFiles") Integer maxIndexFiles,
             @JsonProperty("skipIndexFiles") Integer skipIndexFiles) {
-        if (profile != null) {
-            fetcher = new S3Fetcher();
-            ((S3Fetcher) fetcher).setProfile(profile);
-            ((S3Fetcher) fetcher).setCredentialsProvider("profile");
-            ((S3Fetcher) fetcher).setBucket(ExtractorConfig.CC_S3_BUCKET);
-            ((S3Fetcher) fetcher).setRegion(ExtractorConfig.CC_REGION);
-        } else if (basePath != null) {
-            fetcher = new FileSystemFetcher();
-            ((FileSystemFetcher) fetcher).setBasePath(basePath);
-        } else {
-            // do nothing
-        }
+        this.profile = profile;
+        this.basePath = basePath;
         if (indexPaths != null) {
             configuredPaths.addAll(indexPaths);
         }
@@ -124,36 +112,43 @@ public class IndexIterator extends PipesIterator implements Initializable {
         }
     }
 
-    @Override
-    protected void enqueue() throws IOException, TimeoutException, InterruptedException {
-        int added = 0;
+    /**
+     * Returns a task that puts the resolved index files on the queue followed by one {@link
+     * PipesIterator#COMPLETED_SEMAPHORE}; call after {@link #initialize()}.
+     */
+    public Callable<Long> newProducer(ArrayBlockingQueue<FetchEmitTuple> queue) {
+        return () -> enqueue(queue);
+    }
+
+    private long enqueue(ArrayBlockingQueue<FetchEmitTuple> queue) throws InterruptedException {
+        long added = 0;
         int skipped = 0;
         for (String p : resolvedIndexFiles) {
             if (skipped < skipIndexFiles) {
                 skipped++;
                 continue;
             }
-            FetchEmitTuple t = new FetchEmitTuple(p, new FetchKey("", p), new EmitKey());
-            tryToAdd(t);
+            queue.put(new FetchEmitTuple(p, new FetchKey("", p), new EmitKey()));
             if (maxIndexFiles > -1 && ++added >= maxIndexFiles) {
                 break;
             }
         }
-        tryToAdd(PipesIterator.COMPLETED_SEMAPHORE);
+        queue.put(PipesIterator.COMPLETED_SEMAPHORE);
+        return added;
     }
 
-    @Override
-    public void initialize(Map<String, Param> params) throws TikaConfigException {
-        if (fetcher == null) {
-            fetcher = new BackoffHttpFetcher(ExtractorConfig.DEFAULT_THROTTLE_SECONDS);
-        }
-        if (fetcher instanceof Initializable) {
-            ((Initializable) fetcher).initialize(params);
+    public void initialize() throws TikaConfigException {
+        if (profile != null) {
+            fetcher = TikaPipes.newCCS3Fetcher(profile, null);
+        } else if (basePath != null) {
+            fetcher = TikaPipes.newFileSystemFetcher(basePath);
+        } else {
+            fetcher = TikaPipes.newBackoffHttpFetcher(ExtractorConfig.DEFAULT_THROTTLE_SECONDS);
         }
         Matcher m = Pattern.compile("indexes/cdx-\\d{5,5}.gz\\Z").matcher("");
         if (configuredPaths.size() == 0) {
             try {
-                loadLocalFiles(fetcher);
+                loadLocalFiles();
             } catch (IOException e) {
                 throw new TikaConfigException("Problem reading from local directory");
             }
@@ -180,12 +175,13 @@ public class IndexIterator extends PipesIterator implements Initializable {
         return resolvedIndexFiles.size();
     }
 
-    private void loadLocalFiles(Fetcher fetcher) throws IOException {
-        if (fetcher instanceof FileSystemFetcher) {
-            Path basePath = ((FileSystemFetcher) fetcher).getBasePath();
-            Files.walk(basePath)
-                    .filter(p -> Files.isRegularFile(p))
-                    .forEach(p -> configuredPaths.add(basePath.relativize(p).toString()));
+    private void loadLocalFiles() throws IOException {
+        if (profile == null && basePath != null) {
+            Path base = Path.of(basePath);
+            try (var paths = Files.walk(base)) {
+                paths.filter(p -> Files.isRegularFile(p))
+                        .forEach(p -> configuredPaths.add(base.relativize(p).toString()));
+            }
         }
     }
 }

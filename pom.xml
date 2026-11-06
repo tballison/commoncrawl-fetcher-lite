@@ -30,8 +30,8 @@
         <!-- who woke up and chose violence with this?! -->
         <jackson.annotations.version>2.22</jackson.annotations.version>
         <jupiter.version>6.0.1</jupiter.version>
-        <log4j2.version>2.25.3</log4j2.version>
-        <tika.version>3.3.3</tika.version>
+        <log4j2.version>2.26.1</log4j2.version>
+        <tika.version>4.2.0</tika.version>
         <maven.shade.version>3.6.1</maven.shade.version>
     </properties>
     <dependencyManagement>
@@ -101,22 +101,32 @@
         </dependency>
         <dependency>
             <groupId>org.apache.tika</groupId>
-            <artifactId>tika-fetcher-http</artifactId>
+            <artifactId>tika-pipes-api</artifactId>
             <version>${tika.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.tika</groupId>
-            <artifactId>tika-fetcher-s3</artifactId>
+            <artifactId>tika-serialization</artifactId>
             <version>${tika.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.tika</groupId>
-            <artifactId>tika-emitter-s3</artifactId>
+            <artifactId>tika-plugins-core</artifactId>
             <version>${tika.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.tika</groupId>
-            <artifactId>tika-emitter-fs</artifactId>
+            <artifactId>tika-pipes-http</artifactId>
+            <version>${tika.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.tika</groupId>
+            <artifactId>tika-pipes-s3</artifactId>
+            <version>${tika.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.tika</groupId>
+            <artifactId>tika-pipes-file-system</artifactId>
             <version>${tika.version}</version>
         </dependency>
         <dependency>
@@ -199,6 +209,11 @@
                                 </filter>
                             </filters>
                             <transformers>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+                                <!-- tika-core and tika-pipes-api both ship this index -->
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
+                                    <resource>META-INF/tika/parse-context.idx</resource>
+                                </transformer>
                                 <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
                                     <mainClass>org.tallison.cc.index.extractor.CCFetcherCli</mainClass>
                                 </transformer>

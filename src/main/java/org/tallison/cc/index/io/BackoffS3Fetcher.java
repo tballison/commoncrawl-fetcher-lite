@@ -16,24 +16,24 @@
  */
 package org.tallison.cc.index.io;
 
-import com.amazonaws.AmazonServiceException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.awscore.exception.AwsServiceException;
 
 import java.io.IOException;
-import java.io.InputStream;
 
 import org.apache.tika.exception.TikaException;
+import org.apache.tika.io.TikaInputStream;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.parser.ParseContext;
-import org.apache.tika.pipes.fetcher.RangeFetcher;
-import org.apache.tika.pipes.fetcher.s3.S3Fetcher;
+import org.apache.tika.pipes.api.fetcher.RangeFetcher;
+import org.apache.tika.plugins.ExtensionConfig;
 
 /**
  * S3 counterpart of {@link BackoffHttpFetcher}: S3 503 SlowDown / 429 go into the process-wide
  * {@link RateLimitMonitor}, so crossing its threshold pauses every fetch thread, and every attempt
- * waits out a pause first. The wrapped fetcher gets a single attempt per call (its own retry
- * ladder would hide the 503s); this class owns the {@code throttleSeconds} ladder.
+ * waits out a pause first. The wrapped fetcher gets a single attempt per call (its own retry ladder
+ * would hide the 503s); this class owns the {@code throttleSeconds} ladder.
  */
 public class BackoffS3Fetcher implements RangeFetcher {
 
@@ -46,7 +46,7 @@ public class BackoffS3Fetcher implements RangeFetcher {
 
     @FunctionalInterface
     interface Attempt {
-        InputStream fetch() throws TikaException, IOException;
+        TikaInputStream fetch() throws TikaException, IOException;
     }
 
     private final RangeFetcher delegate;
@@ -54,10 +54,8 @@ public class BackoffS3Fetcher implements RangeFetcher {
     private final RateLimitMonitor monitor;
     private final Sleeper sleeper;
 
-    /** {@code s3} must be configured; its own retries are turned off here. */
-    public static BackoffS3Fetcher wrap(S3Fetcher s3, long[] throttleSeconds) {
-        // one try; Tika indexes throttleSeconds[0] after a failure, so it can't be empty
-        s3.setThrottleSeconds(new long[] {0});
+    /** {@code s3} must make a single attempt per call (no {@code throttleSeconds}). */
+    public static BackoffS3Fetcher wrap(RangeFetcher s3, long[] throttleSeconds) {
         return new BackoffS3Fetcher(s3, throttleSeconds, RateLimitMonitor.global(), Thread::sleep);
     }
 
@@ -73,18 +71,18 @@ public class BackoffS3Fetcher implements RangeFetcher {
     }
 
     @Override
-    public String getName() {
-        return "backoffS3Fetcher";
+    public ExtensionConfig getExtensionConfig() {
+        return delegate.getExtensionConfig();
     }
 
     @Override
-    public InputStream fetch(String fetchKey, Metadata metadata, ParseContext parseContext)
+    public TikaInputStream fetch(String fetchKey, Metadata metadata, ParseContext parseContext)
             throws TikaException, IOException {
         return withBackoff(fetchKey, () -> delegate.fetch(fetchKey, metadata, parseContext));
     }
 
     @Override
-    public InputStream fetch(
+    public TikaInputStream fetch(
             String fetchKey,
             long rangeStart,
             long rangeEnd,
@@ -96,7 +94,8 @@ public class BackoffS3Fetcher implements RangeFetcher {
                 () -> delegate.fetch(fetchKey, rangeStart, rangeEnd, metadata, parseContext));
     }
 
-    InputStream withBackoff(String fetchKey, Attempt attempt) throws TikaException, IOException {
+    TikaInputStream withBackoff(String fetchKey, Attempt attempt)
+            throws TikaException, IOException {
         for (int tries = 0; ; tries++) {
             try {
                 monitor.awaitClearance();
@@ -136,13 +135,14 @@ public class BackoffS3Fetcher implements RangeFetcher {
     /** 503 or 429 if a rate-limit response is anywhere in the cause chain, else -1. */
     static int rateLimitStatus(Throwable t) {
         for (Throwable c = t; c != null; c = c.getCause() == c ? null : c.getCause()) {
-            if (c instanceof AmazonServiceException) {
-                AmazonServiceException ase = (AmazonServiceException) c;
-                if ("SlowDown".equals(ase.getErrorCode())) {
+            if (c instanceof AwsServiceException) {
+                AwsServiceException ase = (AwsServiceException) c;
+                if (ase.awsErrorDetails() != null
+                        && "SlowDown".equals(ase.awsErrorDetails().errorCode())) {
                     return 503;
                 }
-                if (RateLimitMonitor.isRateLimitStatus(ase.getStatusCode())) {
-                    return ase.getStatusCode();
+                if (RateLimitMonitor.isRateLimitStatus(ase.statusCode())) {
+                    return ase.statusCode();
                 }
             }
         }

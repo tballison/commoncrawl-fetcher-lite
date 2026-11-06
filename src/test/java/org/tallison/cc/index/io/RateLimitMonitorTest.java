@@ -27,7 +27,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
-import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -117,7 +116,8 @@ public class RateLimitMonitorTest {
         assertEquals(-1, BackoffHttpFetcher.statusOf(new IOException("connection reset")));
         assertEquals(-1, BackoffHttpFetcher.statusOf(new IOException()));
         assertEquals(
-                "data.commoncrawl.org", BackoffHttpFetcher.hostOf("https://data.commoncrawl.org/x"));
+                "data.commoncrawl.org",
+                BackoffHttpFetcher.hostOf("https://data.commoncrawl.org/x"));
     }
 
     @Test
@@ -136,8 +136,7 @@ public class RateLimitMonitorTest {
         server.start();
         try {
             RateLimitMonitor m = new RateLimitMonitor(System::currentTimeMillis, 2, MIN, 50);
-            BackoffHttpFetcher f = new BackoffHttpFetcher(new long[] {0, 0, 0, 0, 0}, m);
-            f.initialize(Collections.emptyMap());
+            BackoffHttpFetcher f = TikaPipes.newBackoffHttpFetcher(new long[] {0, 0, 0, 0, 0}, m);
             String url = "http://127.0.0.1:" + server.getAddress().getPort() + "/x";
             try (InputStream is = f.fetch(url, new Metadata(), new ParseContext())) {
                 assertEquals("ok", new String(is.readAllBytes(), StandardCharsets.US_ASCII));

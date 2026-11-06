@@ -48,11 +48,11 @@ import org.apache.tika.exception.TikaException;
 import org.apache.tika.io.TikaInputStream;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.parser.ParseContext;
-import org.apache.tika.pipes.FetchEmitTuple;
-import org.apache.tika.pipes.emitter.EmitKey;
-import org.apache.tika.pipes.emitter.StreamEmitter;
-import org.apache.tika.pipes.fetcher.FetchKey;
-import org.apache.tika.pipes.fetcher.RangeFetcher;
+import org.apache.tika.pipes.api.FetchEmitTuple;
+import org.apache.tika.pipes.api.emitter.EmitKey;
+import org.apache.tika.pipes.api.emitter.StreamEmitter;
+import org.apache.tika.pipes.api.fetcher.FetchKey;
+import org.apache.tika.pipes.api.fetcher.RangeFetcher;
 
 public class FileFromCCWarcExtractor {
     private static Logger LOGGER = LoggerFactory.getLogger(FileFromCCWarcExtractor.class);
@@ -174,7 +174,7 @@ public class FileFromCCWarcExtractor {
             try (InputStream is = TikaInputStream.get(tmp, metadata)) {
                 emitter.emit(targetPath, is, new Metadata(), new ParseContext());
                 logSuccess(ccIndexRecord, targetDigest, length, targetPath, httpHeaders);
-            } catch (IOException | TikaException e) {
+            } catch (IOException e) {
                 LOGGER.warn("problem writing id=" + id, e);
             }
         } finally {
