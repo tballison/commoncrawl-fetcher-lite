@@ -20,19 +20,21 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.amazonaws.services.s3.model.AmazonS3Exception;
 import org.junit.jupiter.api.Test;
+import software.amazon.awssdk.awscore.exception.AwsErrorDetails;
+import software.amazon.awssdk.services.s3.model.S3Exception;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.tika.exception.TikaException;
+import org.apache.tika.io.TikaInputStream;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.parser.ParseContext;
-import org.apache.tika.pipes.fetcher.RangeFetcher;
+import org.apache.tika.pipes.api.fetcher.RangeFetcher;
+import org.apache.tika.plugins.ExtensionConfig;
 
 public class BackoffS3FetcherTest {
 
@@ -40,29 +42,35 @@ public class BackoffS3FetcherTest {
         // the ladder's sleeps are not under test
     }
 
-    private static AmazonS3Exception slowDown() {
-        AmazonS3Exception e = new AmazonS3Exception("Please reduce your request rate.");
-        e.setStatusCode(503);
-        e.setErrorCode("SlowDown");
-        return e;
+    private static S3Exception s3Exception(String message, int status, String errorCode) {
+        return (S3Exception)
+                S3Exception.builder()
+                        .message(message)
+                        .statusCode(status)
+                        .awsErrorDetails(AwsErrorDetails.builder().errorCode(errorCode).build())
+                        .build();
+    }
+
+    private static S3Exception slowDown() {
+        return s3Exception("Please reduce your request rate.", 503, "SlowDown");
     }
 
     /** A fake S3 fetcher: every call runs {@code body}. */
     private static RangeFetcher fake(BackoffS3Fetcher.Attempt body) {
         return new RangeFetcher() {
             @Override
-            public String getName() {
-                return "fake";
+            public ExtensionConfig getExtensionConfig() {
+                return null;
             }
 
             @Override
-            public InputStream fetch(String k, Metadata m, ParseContext c)
+            public TikaInputStream fetch(String k, Metadata m, ParseContext c)
                     throws TikaException, IOException {
                 return body.fetch();
             }
 
             @Override
-            public InputStream fetch(String k, long s, long e, Metadata m, ParseContext c)
+            public TikaInputStream fetch(String k, long s, long e, Metadata m, ParseContext c)
                     throws TikaException, IOException {
                 return body.fetch();
             }
@@ -75,12 +83,10 @@ public class BackoffS3FetcherTest {
         assertEquals(503, BackoffS3Fetcher.rateLimitStatus(new IOException(slowDown())));
         assertEquals(
                 503, BackoffS3Fetcher.rateLimitStatus(new TikaException("client", slowDown())));
-        AmazonS3Exception tooMany = new AmazonS3Exception("slow");
-        tooMany.setStatusCode(429);
-        assertEquals(429, BackoffS3Fetcher.rateLimitStatus(new IOException(tooMany)));
-        AmazonS3Exception missing = new AmazonS3Exception("no such key");
-        missing.setStatusCode(404);
-        missing.setErrorCode("NoSuchKey");
+        assertEquals(
+                429,
+                BackoffS3Fetcher.rateLimitStatus(new IOException(s3Exception("slow", 429, null))));
+        S3Exception missing = s3Exception("no such key", 404, "NoSuchKey");
         assertEquals(-1, BackoffS3Fetcher.rateLimitStatus(new IOException(missing)));
         assertEquals(-1, BackoffS3Fetcher.rateLimitStatus(new IOException("reset")));
     }
@@ -123,7 +129,7 @@ public class BackoffS3FetcherTest {
                         fake(
                                 () -> {
                                     healthyCalledAt.set(System.currentTimeMillis());
-                                    return new ByteArrayInputStream(new byte[] {1});
+                                    return TikaInputStream.get(new byte[] {1});
                                 }),
                         new long[] {0},
                         m,

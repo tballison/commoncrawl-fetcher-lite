@@ -26,7 +26,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
-import java.util.Collections;
 import java.util.Locale;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.Callable;
@@ -48,10 +47,9 @@ import org.apache.tika.exception.TikaException;
 import org.apache.tika.io.TikaInputStream;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.parser.ParseContext;
-import org.apache.tika.pipes.FetchEmitTuple;
-import org.apache.tika.pipes.fetcher.Fetcher;
-import org.apache.tika.pipes.pipesiterator.CallablePipesIterator;
-import org.apache.tika.pipes.pipesiterator.PipesIterator;
+import org.apache.tika.pipes.api.FetchEmitTuple;
+import org.apache.tika.pipes.api.fetcher.Fetcher;
+import org.apache.tika.pipes.api.pipesiterator.PipesIterator;
 import org.apache.tika.utils.StringUtils;
 
 /**
@@ -83,8 +81,8 @@ public class CCFileExtractor {
                 new ExecutorCompletionService<>(executorService);
 
         IndexIterator indexIterator = fetcherConfig.getIndexIterator();
-        indexIterator.initialize(Collections.EMPTY_MAP);
-        executorCompletionService.submit(new CallablePipesIterator(indexIterator, indexFileQueue));
+        indexIterator.initialize();
+        executorCompletionService.submit(indexIterator.newProducer(indexFileQueue));
         CCIndexReaderCounter counter = new CCIndexReaderCounter();
         RunManifest manifest = RunManifest.start(fetcherConfig, "Fetch");
         String status = "failed";

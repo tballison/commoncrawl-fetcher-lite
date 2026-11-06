@@ -20,7 +20,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.URI;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -31,15 +30,18 @@ import org.apache.tika.exception.TikaException;
 import org.apache.tika.io.TikaInputStream;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.parser.ParseContext;
-import org.apache.tika.pipes.fetcher.FetchKey;
+import org.apache.tika.pipes.api.fetcher.FetchKey;
+import org.apache.tika.pipes.api.fetcher.RangeFetcher;
 import org.apache.tika.pipes.fetcher.http.HttpFetcher;
+import org.apache.tika.plugins.AbstractTikaExtension;
+import org.apache.tika.plugins.ExtensionConfig;
 
 /**
  * We need this because it allows for back-off on 503/429 (counted and escalated to a hard pause by
- * {@link RateLimitMonitor}) and it adds the protocol+host base to the
- * paths: {@link ExtractorConfig#CC_HTTPS_BASE}
+ * {@link RateLimitMonitor}) and it adds the protocol+host base to the paths: {@link
+ * ExtractorConfig#CC_HTTPS_BASE}
  */
-public class BackoffHttpFetcher extends HttpFetcher {
+public class BackoffHttpFetcher extends AbstractTikaExtension implements RangeFetcher {
 
     private static Logger LOGGER = LoggerFactory.getLogger(BackoffHttpFetcher.class);
     private static final Pattern BAD_STATUS = Pattern.compile("bad status code: (\\d+)");
@@ -47,29 +49,37 @@ public class BackoffHttpFetcher extends HttpFetcher {
     // backoff
     private final long[] throttleSeconds;
     private final RateLimitMonitor monitor;
+    private final HttpFetcher delegate;
 
-    public BackoffHttpFetcher(long[] throttleSeconds) {
-        this(throttleSeconds, RateLimitMonitor.global());
-    }
-
-    BackoffHttpFetcher(long[] throttleSeconds, RateLimitMonitor monitor) {
+    BackoffHttpFetcher(
+            ExtensionConfig extensionConfig,
+            HttpFetcher delegate,
+            long[] throttleSeconds,
+            RateLimitMonitor monitor) {
+        super(extensionConfig);
+        this.delegate = delegate;
         this.throttleSeconds = throttleSeconds;
         this.monitor = monitor;
     }
 
     @Override
-    public InputStream fetch(String fetchKey, Metadata metadata, ParseContext parseContext)
+    public TikaInputStream fetch(String fetchKey, Metadata metadata, ParseContext parseContext)
             throws TikaException, IOException {
         return fetchWithBackOff(new FetchKey("name", getUrl(fetchKey)), metadata, parseContext);
     }
 
     @Override
-    public InputStream fetch(String fetchkey, long rangeStart, long rangeEnd, Metadata metadata)
+    public TikaInputStream fetch(
+            String fetchkey,
+            long rangeStart,
+            long rangeEnd,
+            Metadata metadata,
+            ParseContext parseContext)
             throws IOException {
         return fetchWithBackOff(
                 new FetchKey("name", getUrl(fetchkey), rangeStart, rangeEnd),
                 metadata,
-                new ParseContext());
+                parseContext);
     }
 
     private String getUrl(String fetchKey) {
@@ -83,13 +93,13 @@ public class BackoffHttpFetcher extends HttpFetcher {
         return fetchKey;
     }
 
-    private InputStream fetchWithBackOff(
+    private TikaInputStream fetchWithBackOff(
             FetchKey fetchKey, Metadata metadata, ParseContext parseContext) throws IOException {
         int tries = 0;
         while (tries < throttleSeconds.length) {
             try {
                 monitor.awaitClearance();
-                return _fetch(fetchKey, metadata);
+                return _fetch(fetchKey, metadata, parseContext);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 throw new IOException("interrupted during rate-limit pause", e);
@@ -145,23 +155,17 @@ public class BackoffHttpFetcher extends HttpFetcher {
         }
     }
 
-    private TikaInputStream _fetch(FetchKey fetchKey, Metadata metadata)
+    private TikaInputStream _fetch(FetchKey fetchKey, Metadata metadata, ParseContext parseContext)
             throws IOException, TikaException {
         if (fetchKey.getRangeStart() > 0) {
-            return (TikaInputStream)
-                    super.fetch(
-                            fetchKey.getFetchKey(),
-                            fetchKey.getRangeStart(),
-                            fetchKey.getRangeEnd(),
-                            metadata);
+            return delegate.fetch(
+                    fetchKey.getFetchKey(),
+                    fetchKey.getRangeStart(),
+                    fetchKey.getRangeEnd(),
+                    metadata,
+                    parseContext);
         } else {
-            return (TikaInputStream)
-                    super.fetch(fetchKey.getFetchKey(), metadata, new ParseContext());
+            return delegate.fetch(fetchKey.getFetchKey(), metadata, parseContext);
         }
-    }
-
-    @Override
-    public String getName() {
-        return "backoffHttpFetcher";
     }
 }
