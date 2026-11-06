@@ -26,7 +26,14 @@ public abstract class AbstractSamplingSelector implements SelectorClause {
         this.sampler = sampler;
     }
 
-    interface Sampler extends SelectorClause {}
+    /** re-seed sampling; no-op unless this selector samples */
+    void reseed(long seed) {
+        sampler.reseed(seed);
+    }
+
+    interface Sampler extends SelectorClause {
+        default void reseed(long seed) {}
+    }
 
     static class SampleAll implements Sampler {
         @Override
@@ -37,10 +44,15 @@ public abstract class AbstractSamplingSelector implements SelectorClause {
 
     static class SampleSome implements Sampler {
         private final double sample;
-        private final Random random = new Random();
+        private Random random = new Random();
 
         SampleSome(double sample) {
             this.sample = sample;
+        }
+
+        @Override
+        public void reseed(long seed) {
+            random = new Random(seed);
         }
 
         @Override

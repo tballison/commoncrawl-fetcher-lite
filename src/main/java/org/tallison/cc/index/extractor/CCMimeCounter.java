@@ -102,8 +102,8 @@ public class CCMimeCounter {
         executorCompletionService.submit(new CallablePipesIterator(indexIterator, indexFileQueue));
         CCIndexReaderCounter counter = new CCIndexReaderCounter();
         counter.setTotalIndexFiles(indexIterator.getResolvedIndexFileCount());
-        LOGGER.info("Resolved {} index files to process",
-                indexIterator.getResolvedIndexFileCount());
+        LOGGER.info(
+                "Resolved {} index files to process", indexIterator.getResolvedIndexFileCount());
         int finishedWorkers = 0;
         List<DetectedMimeCounter> detectedMimeCounters = new ArrayList<>();
         try {
@@ -111,8 +111,7 @@ public class CCMimeCounter {
                 DetectedMimeCounter processor = new DetectedMimeCounter(fetcherConfig, counter);
                 detectedMimeCounters.add(processor);
                 executorCompletionService.submit(
-                        new IndexWorker(fetcherConfig, indexFileQueue,
-                                processor, counter));
+                        new IndexWorker(fetcherConfig, indexFileQueue, processor, counter));
             }
 
             while (finishedWorkers < fetcherConfig.getNumThreads()) {

@@ -27,9 +27,9 @@ import java.util.Locale;
 
 /**
  * Derives a short label from a fetch config (explicit {@code runLabel}, else the {@code docs}
- * output path/bucket) and exposes it as the {@code cc.runLabel} system property so that
- * log4j2.xml can scope each run's CSV logs (extracted-urls.csv, urls-truncated.csv, etc.) to
- * their own subdirectory instead of every config sharing -- and clobbering -- the same files.
+ * output path/bucket) and exposes it as the {@code cc.runLabel} system property so that log4j2.xml
+ * can scope each run's CSV logs (extracted-urls.csv, urls-truncated.csv, etc.) to their own
+ * subdirectory instead of every config sharing -- and clobbering -- the same files.
  *
  * <p>Must run, and the system property must be set, before any class with a static Logger field
  * (e.g. {@link CCFileExtractor}) is loaded -- that first {@code getLogger()} call is what causes

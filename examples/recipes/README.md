@@ -21,9 +21,12 @@ config files entirely.
 ## Charset-detection corpus building
 
 These recipes target HTML documents that stress-test Tika's encoding detection.
-The selector filters on the index's `tld`, `charset`, and `languages` fields —
-all derived from raw HTTP / HTML declarations at crawl time, not from any
-charset detector, so the resulting samples are not biased by Tika's own picks.
+The selector filters on the index's `tld`, `charset`, and `languages` fields.
+Their provenance is unverified (`charset` may come from the HTTP header, a
+`<meta>` tag or a detector; `languages` is assumed to be CLD2 output), so treat
+them as hints, never ground truth. HTML is matched with a regex
+(`^(text/html|application/xhtml\\+xml)$`) because repeated `must` clauses on one
+key are ANDed. `{"absent": true}` selects a null/blank field.
 
 | Recipe | Target | Config |
 |--------|--------|--------|

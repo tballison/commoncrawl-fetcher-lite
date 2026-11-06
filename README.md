@@ -50,7 +50,9 @@ generated as HTML during the build (`target/docs/`):
 * [Overview & Background](docs/index.adoc)
 * [Configuring the Fetch](docs/configuration.adoc)
 * [Option B: Querying the Columnar Index](docs/columnar-index.adoc) -- faster alternative to
-  scanning the CDX index, needs AWS credentials (not Athena, not billed)
+  scanning the CDX index, needs AWS credentials (not Athena, not billed). DuckDB's S3 retry curve
+  (12 retries, 2 s x 1.5^n, ~9 min per failed read) is tunable with `-Dcc.duckdb.httpRetries`,
+  `-Dcc.duckdb.httpRetryWaitMs` and `-Dcc.duckdb.httpRetryBackoff`; see "Retry tuning" there.
 * [Advanced Scenarios](docs/advanced.adoc)
 
 To generate HTML docs:

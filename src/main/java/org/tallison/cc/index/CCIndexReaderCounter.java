@@ -17,6 +17,9 @@
 package org.tallison.cc.index;
 
 import java.util.Locale;
+import java.util.Map;
+import java.util.TreeMap;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class CCIndexReaderCounter {
@@ -25,7 +28,25 @@ public class CCIndexReaderCounter {
     AtomicLong truncated = new AtomicLong(0);
     AtomicLong emptyPayload = new AtomicLong(0);
     AtomicLong indexFilesCompleted = new AtomicLong(0);
+    AtomicLong filesWritten = new AtomicLong(0);
+    private final Map<String, AtomicLong> writtenByStratum = new ConcurrentHashMap<>();
     private int totalIndexFiles = -1;
+
+    public AtomicLong getFilesWritten() {
+        return filesWritten;
+    }
+
+    /** counts a written file under its stratum, e.g. "text/html|windows-1251" */
+    public void recordWritten(String stratum) {
+        filesWritten.incrementAndGet();
+        writtenByStratum.computeIfAbsent(stratum, k -> new AtomicLong()).incrementAndGet();
+    }
+
+    public Map<String, Long> getWrittenByStratum() {
+        Map<String, Long> out = new TreeMap<>();
+        writtenByStratum.forEach((k, v) -> out.put(k, v.get()));
+        return out;
+    }
 
     public AtomicLong getRecordsRead() {
         return recordsRead;
@@ -55,9 +76,7 @@ public class CCIndexReaderCounter {
         this.totalIndexFiles = totalIndexFiles;
     }
 
-    /**
-     * Returns a formatted progress summary suitable for logging.
-     */
+    /** Returns a formatted progress summary suitable for logging. */
     public String progressSummary() {
         long completed = indexFilesCompleted.get();
         long records = recordsRead.get();
@@ -67,16 +86,23 @@ public class CCIndexReaderCounter {
         StringBuilder sb = new StringBuilder();
         if (totalIndexFiles > 0) {
             double pct = 100.0 * completed / totalIndexFiles;
-            sb.append(String.format(Locale.US,
-                    "index files: %,d/%,d (%.1f%%)",
-                    completed, totalIndexFiles, pct));
+            sb.append(
+                    String.format(
+                            Locale.US,
+                            "index files: %,d/%,d (%.1f%%)",
+                            completed,
+                            totalIndexFiles,
+                            pct));
         } else {
-            sb.append(String.format(Locale.US,
-                    "index files: %,d completed", completed));
+            sb.append(String.format(Locale.US, "index files: %,d completed", completed));
         }
-        sb.append(String.format(Locale.US,
-                " | records: %,d | extracted: %,d | truncated: %,d",
-                records, extracted, trunc));
+        sb.append(
+                String.format(
+                        Locale.US,
+                        " | records: %,d | extracted: %,d | truncated: %,d",
+                        records,
+                        extracted,
+                        trunc));
         return sb.toString();
     }
 

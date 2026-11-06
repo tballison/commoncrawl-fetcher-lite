@@ -29,6 +29,7 @@ import java.util.Map;
  * CLI shorthand for common fetch operations without writing a JSON config file.
  *
  * <p>Usage examples:
+ *
  * <pre>
  *   QuickFetch --mime application/pdf --output ~/data/pdfs
  *   QuickFetch --mime application/pdf --crawl CC-MAIN-2025-51 --max 1000
@@ -101,8 +102,8 @@ public class CCQuickFetch {
         String crawlId = resolveCrawl(crawl);
 
         // Build config JSON
-        String configJson = buildConfigJson(
-                mimeTypes, extensions, crawlId, output, maxFiles, threads, dryRun);
+        String configJson =
+                buildConfigJson(mimeTypes, extensions, crawlId, output, maxFiles, threads, dryRun);
 
         System.out.println("Generated config:");
         System.out.println(configJson);
@@ -118,7 +119,7 @@ public class CCQuickFetch {
         System.out.println();
 
         RunLabel.primeFromConfigFile(tempConfig.getAbsolutePath());
-        CCFileExtractor.main(new String[]{tempConfig.getAbsolutePath()});
+        CCFileExtractor.main(new String[] {tempConfig.getAbsolutePath()});
     }
 
     private static String resolveCrawl(String crawl) {
@@ -128,7 +129,7 @@ public class CCQuickFetch {
             if (latest == null) {
                 System.err.println(
                         "Could not determine latest crawl. "
-                        + "Specify a crawl ID explicitly with --crawl CC-MAIN-YYYY-WW");
+                                + "Specify a crawl ID explicitly with --crawl CC-MAIN-YYYY-WW");
                 System.exit(1);
             }
             System.out.println("Using latest crawl: " + latest);
@@ -138,9 +139,14 @@ public class CCQuickFetch {
     }
 
     static String buildConfigJson(
-            List<String> mimeTypes, List<String> extensions,
-            String crawlId, String output,
-            long maxFiles, int threads, boolean dryRun) throws IOException {
+            List<String> mimeTypes,
+            List<String> extensions,
+            String crawlId,
+            String output,
+            long maxFiles,
+            int threads,
+            boolean dryRun)
+            throws IOException {
 
         // Build the config as a map and serialize with Jackson for proper escaping
         ObjectMapper mapper = new ObjectMapper();
@@ -149,12 +155,11 @@ public class CCQuickFetch {
         config.put("dryRun", dryRun);
 
         Map<String, Object> fetcher = new LinkedHashMap<>();
-        fetcher.put("throttleSeconds", new long[]{30, 60, 120, 240, 480, 600, 900, 1800});
+        fetcher.put("throttleSeconds", new long[] {30, 60, 120, 240, 480, 600, 900, 1800});
         config.put("fetcher", fetcher);
 
         Map<String, Object> indices = new LinkedHashMap<>();
-        indices.put("paths", List.of(
-                "crawl-data/" + crawlId + "/cc-index.paths.gz"));
+        indices.put("paths", List.of("crawl-data/" + crawlId + "/cc-index.paths.gz"));
         config.put("indices", indices);
 
         Map<String, Object> docs = new LinkedHashMap<>();
@@ -188,8 +193,7 @@ public class CCQuickFetch {
         }
 
         if (!extensions.isEmpty()) {
-            should.put("url",
-                    List.of(Map.of("extensions", String.join(",", extensions))));
+            should.put("url", List.of(Map.of("extensions", String.join(",", extensions))));
         }
 
         recordSelector.put("should", should);
@@ -200,7 +204,8 @@ public class CCQuickFetch {
     }
 
     private static void printUsage() {
-        System.out.println("QuickFetch - fetch files from Common Crawl without writing a config file");
+        System.out.println(
+                "QuickFetch - fetch files from Common Crawl without writing a config file");
         System.out.println();
         System.out.println("Usage: QuickFetch [options]");
         System.out.println();
@@ -217,23 +222,35 @@ public class CCQuickFetch {
         System.out.println();
         System.out.println("Examples:");
         System.out.println("  QuickFetch --mime application/pdf --output ~/data/pdfs");
-        System.out.println("  QuickFetch --mime application/pdf --crawl CC-MAIN-2025-51 --max 1000");
+        System.out.println(
+                "  QuickFetch --mime application/pdf --crawl CC-MAIN-2025-51 --max 1000");
         System.out.println("  QuickFetch --extension xlsx,xlsm --output ~/data/excel");
         System.out.println("  QuickFetch --mime application/vnd.ms-outlook --dry-run");
         System.out.println();
         System.out.println("Common MIME types:");
         System.out.println("  application/pdf");
-        System.out.println("  application/vnd.openxmlformats-officedocument.wordprocessingml.document  (docx)");
-        System.out.println("  application/vnd.openxmlformats-officedocument.spreadsheetml.sheet        (xlsx)");
-        System.out.println("  application/vnd.openxmlformats-officedocument.presentationml.presentation (pptx)");
-        System.out.println("  application/vnd.ms-excel.sheet.macroEnabled.12                           (xlsm)");
-        System.out.println("  application/vnd.ms-word.document.macroEnabled.12                         (docm)");
-        System.out.println("  application/vnd.ms-powerpoint.presentation.macroEnabled.12               (pptm)");
-        System.out.println("  application/msword                                                       (doc)");
-        System.out.println("  application/vnd.ms-excel                                                 (xls)");
-        System.out.println("  application/vnd.ms-powerpoint                                            (ppt)");
-        System.out.println("  application/epub+zip                                                     (epub)");
-        System.out.println("  application/vnd.ms-outlook                                               (msg)");
+        System.out.println(
+                "  application/vnd.openxmlformats-officedocument.wordprocessingml.document  (docx)");
+        System.out.println(
+                "  application/vnd.openxmlformats-officedocument.spreadsheetml.sheet        (xlsx)");
+        System.out.println(
+                "  application/vnd.openxmlformats-officedocument.presentationml.presentation (pptx)");
+        System.out.println(
+                "  application/vnd.ms-excel.sheet.macroEnabled.12                           (xlsm)");
+        System.out.println(
+                "  application/vnd.ms-word.document.macroEnabled.12                         (docm)");
+        System.out.println(
+                "  application/vnd.ms-powerpoint.presentation.macroEnabled.12               (pptm)");
+        System.out.println(
+                "  application/msword                                                       (doc)");
+        System.out.println(
+                "  application/vnd.ms-excel                                                 (xls)");
+        System.out.println(
+                "  application/vnd.ms-powerpoint                                            (ppt)");
+        System.out.println(
+                "  application/epub+zip                                                     (epub)");
+        System.out.println(
+                "  application/vnd.ms-outlook                                               (msg)");
         System.out.println("  image/jpeg, image/png, image/gif, image/webp, image/tiff");
         System.out.println("  video/mp4, video/webm, video/quicktime");
         System.out.println("  audio/mpeg, audio/wav, audio/ogg");

@@ -26,10 +26,10 @@ import java.nio.file.Paths;
 
 import org.tallison.cc.index.extractor.ExtractorConfig;
 import org.tallison.cc.index.io.BackoffHttpFetcher;
+import org.tallison.cc.index.io.BackoffS3Fetcher;
 
 import org.apache.tika.pipes.emitter.fs.FileSystemEmitter;
 import org.apache.tika.pipes.emitter.s3.S3Emitter;
-import org.apache.tika.pipes.fetcher.s3.S3Fetcher;
 
 public class FetcherConfigTest {
 
@@ -73,7 +73,7 @@ public class FetcherConfigTest {
                 new ObjectMapper().readValue(p.toFile(), ExtractorConfig.class);
 
         // TODO -- add actual unit test that tests fetcher and emitter
-        assertEquals(S3Fetcher.class, fetcherConfig.newFetcher().getClass());
+        assertEquals(BackoffS3Fetcher.class, fetcherConfig.newFetcher().getClass());
         assertEquals(S3Emitter.class, fetcherConfig.newEmitter().getClass());
     }
 }

@@ -23,9 +23,18 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 @JsonSubTypes({
     @JsonSubTypes.Type(MatchSelector.class),
     @JsonSubTypes.Type(RegexSelector.class),
-    @JsonSubTypes.Type(ExtensionsSelector.class)
+    @JsonSubTypes.Type(ExtensionsSelector.class),
+    @JsonSubTypes.Type(AbsentSelector.class)
 })
 public interface SelectorClause {
 
+    /**
+     * @param val the field value; null only if {@link #evaluatesNull()}
+     */
     boolean select(String val);
+
+    /** true if this clause must see null values (otherwise a null field never matches) */
+    default boolean evaluatesNull() {
+        return false;
+    }
 }

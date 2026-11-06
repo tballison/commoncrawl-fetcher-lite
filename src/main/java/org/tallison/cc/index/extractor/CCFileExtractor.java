@@ -16,7 +16,6 @@
  */
 package org.tallison.cc.index.extractor;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -66,9 +65,7 @@ public class CCFileExtractor {
     private static final Logger LOGGER = LoggerFactory.getLogger(CCFileExtractor.class);
 
     public static void main(String[] args) throws Exception {
-        ExtractorConfig fetcherConfig =
-                new ObjectMapper().readValue(new File(args[0]), ExtractorConfig.class);
-        execute(fetcherConfig);
+        execute(ExtractorConfig.load(new File(args[0])));
     }
 
     private static void execute(ExtractorConfig fetcherConfig) throws TikaException {
@@ -89,6 +86,8 @@ public class CCFileExtractor {
         indexIterator.initialize(Collections.EMPTY_MAP);
         executorCompletionService.submit(new CallablePipesIterator(indexIterator, indexFileQueue));
         CCIndexReaderCounter counter = new CCIndexReaderCounter();
+        RunManifest manifest = RunManifest.start(fetcherConfig, "Fetch");
+        String status = "failed";
         int totalIndexFiles = indexIterator.getResolvedIndexFileCount();
         counter.setTotalIndexFiles(totalIndexFiles);
         LOGGER.info("Resolved {} index files to process", totalIndexFiles);
@@ -116,6 +115,7 @@ public class CCFileExtractor {
                     }
                 }
             }
+            status = "completed";
         } catch (TikaConfigException | IOException e) {
             LOGGER.error("main loop exception", e);
             throw new RuntimeException(e);
@@ -128,6 +128,7 @@ public class CCFileExtractor {
         } finally {
             executorService.shutdown();
             executorService.shutdownNow();
+            manifest.finish(counter, status);
         }
         LOGGER.info("Finished: {}", counter);
     }

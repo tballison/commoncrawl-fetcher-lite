@@ -34,6 +34,8 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.zip.GZIPInputStream;
 
@@ -61,6 +63,7 @@ public class FileFromCCWarcExtractor {
 
     private RangeFetcher fetcher;
     private final boolean extractTruncated;
+    private final ProvenanceWriter provenanceWriter;
     private Base32 base32 = new Base32();
 
     private final CCIndexReaderCounter ccIndexReaderCounter;
@@ -72,6 +75,7 @@ public class FileFromCCWarcExtractor {
         this.fetcher = (RangeFetcher) fetcherConfig.newFetcher();
         this.targetPathRewriter = fetcherConfig.getTargetPathRewriter();
         this.extractTruncated = fetcherConfig.isExtractTruncated();
+        this.provenanceWriter = fetcherConfig.getProvenanceWriter();
         this.ccIndexReaderCounter = ccIndexReaderCounter;
     }
 
@@ -111,6 +115,13 @@ public class FileFromCCWarcExtractor {
         if (!((record instanceof WarcResponse)
                 && record.contentType().base().equals(MediaType.HTTP))) {
             return;
+        }
+
+        Map<String, List<String>> httpHeaders = null;
+        try {
+            httpHeaders = ((WarcResponse) record).http().headers().map();
+        } catch (IOException e) {
+            LOGGER.warn("couldn't parse http headers for {}", id, e);
         }
 
         Optional<WarcPayload> payload = ((WarcResponse) record).payload();
@@ -162,7 +173,7 @@ public class FileFromCCWarcExtractor {
             Metadata metadata = new Metadata();
             try (InputStream is = TikaInputStream.get(tmp, metadata)) {
                 emitter.emit(targetPath, is, new Metadata(), new ParseContext());
-                logSuccess(ccIndexRecord, targetDigest, length, targetPath);
+                logSuccess(ccIndexRecord, targetDigest, length, targetPath, httpHeaders);
             } catch (IOException | TikaException e) {
                 LOGGER.warn("problem writing id=" + id, e);
             }
@@ -176,7 +187,20 @@ public class FileFromCCWarcExtractor {
     }
 
     private void logSuccess(
-            CCIndexRecord ccIndexRecord, String targetDigest, long length, String targetPath) {
+            CCIndexRecord ccIndexRecord,
+            String targetDigest,
+            long length,
+            String targetPath,
+            Map<String, List<String>> httpHeaders) {
+        ccIndexReaderCounter.recordWritten(
+                ccIndexRecord.getNormalizedMimeDetected() + "|" + ccIndexRecord.getCharset());
+        try {
+            provenanceWriter.write(
+                    ProvenanceWriter.toJson(
+                            ccIndexRecord, targetDigest, length, targetPath, httpHeaders));
+        } catch (IOException e) {
+            LOGGER.warn("couldn't write provenance for {}", ccIndexRecord.getUrl(), e);
+        }
         if (extractTruncated) {
             EXTRACTED_ALL_LOGGER.info(
                     "",
@@ -207,7 +231,7 @@ public class FileFromCCWarcExtractor {
         }
     }
 
-    private void parseWarc(String id, CCIndexRecord ccIndexRecord, byte[] warcRecordGZBytes)
+    void parseWarc(String id, CCIndexRecord ccIndexRecord, byte[] warcRecordGZBytes)
             throws IOException {
         // need to leave initial inputstream open while parsing warcrecord
         // can't just parse record and return

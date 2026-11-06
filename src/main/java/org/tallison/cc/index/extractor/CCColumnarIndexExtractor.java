@@ -18,6 +18,7 @@ package org.tallison.cc.index.extractor;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import org.duckdb.DuckDBConnection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,29 +27,37 @@ import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 import org.tallison.cc.index.CCIndexReaderCounter;
+import org.tallison.cc.index.io.RateLimitMonitor;
+import org.tallison.cc.index.io.RateLimitPreflight;
 
 import org.apache.tika.exception.TikaConfigException;
+import org.apache.tika.utils.StringUtils;
 
 /**
- * "QueryIndex" command -- an alternative to {@link CCFileExtractor} that finds matching files
- * by querying Common Crawl's columnar (Parquet) index directly instead of downloading and
- * scanning the full CDX index shard-by-shard. See docs/columnar-index.adoc.
+ * "QueryIndex" command -- an alternative to {@link CCFileExtractor} that finds matching files by
+ * querying Common Crawl's columnar (Parquet) index directly instead of downloading and scanning the
+ * full CDX index shard-by-shard. See docs/columnar-index.adoc.
  *
  * <p>Requires AWS credentials (any valid account -- this is NOT AWS Athena and incurs no Athena
- * charges) because the Common Crawl S3 bucket allows anonymous {@code GetObject} but not
- * anonymous {@code ListBucket}, and listing the Parquet part-files under a crawl/subset
- * partition requires the latter. The bucket is not requester-pays, so the list/get calls
- * themselves are free regardless of whose credentials sign them.
+ * charges) because the Common Crawl S3 bucket allows anonymous {@code GetObject} but not anonymous
+ * {@code ListBucket}, and listing the Parquet part-files under a crawl/subset partition requires
+ * the latter. The bucket is not requester-pays, so the list/get calls themselves are free
+ * regardless of whose credentials sign them.
  *
  * <p>Each matched row is translated into a synthetic CDX-format line and fed through the same
- * {@link CCFileExtractorRecordProcessor} that {@link CCFileExtractor} uses, so WARC fetching,
- * CSV logging, {@code dryRun}, {@code maxFilesExtracted}/{@code maxFilesTruncated}, and
- * {@link RunLabel} log scoping all behave identically to the CDX-scanning path.
+ * {@link CCFileExtractorRecordProcessor} that {@link CCFileExtractor} uses, so WARC fetching, CSV
+ * logging, {@code dryRun}, {@code maxFilesExtracted}/{@code maxFilesTruncated}, and {@link
+ * RunLabel} log scoping all behave identically to the CDX-scanning path.
  */
 public class CCColumnarIndexExtractor {
 
@@ -56,72 +65,206 @@ public class CCColumnarIndexExtractor {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
+    private static final long STATS_POLL_MS = 30_000;
+
     public static void main(String[] args) throws Exception {
-        ExtractorConfig fetcherConfig =
-                new ObjectMapper().readValue(new File(args[0]), ExtractorConfig.class);
-        execute(fetcherConfig);
+        execute(ExtractorConfig.load(new File(args[0])));
     }
 
-    private static void execute(ExtractorConfig fetcherConfig) throws Exception {
-        ExtractorConfig.ColumnarIndexConfig columnarConfig =
-                fetcherConfig.getColumnarIndexConfig();
+    /**
+     * "CountIndex" command: runs columnarIndex.countQuery and prints the table; fetches nothing.
+     */
+    public static void count(String[] args) throws Exception {
+        ExtractorConfig config = ExtractorConfig.load(new File(args[0]));
+        ExtractorConfig.ColumnarIndexConfig columnarConfig = requireColumnar(config);
+        if (StringUtils.isBlank(columnarConfig.getCountQuery())) {
+            throw new TikaConfigException("CountIndex requires columnarIndex.countQuery");
+        }
+        String sql = countSql(columnarConfig);
+        LOGGER.info("count query: {}", sql);
+        RateLimitPreflight.check(columnarConfig.getCrawlGlob());
+        try (Connection conn = DriverManager.getConnection("jdbc:duckdb:")) {
+            setup(conn);
+            try (Statement st = conn.createStatement();
+                    DuckDbHttpStats stats = startStats(conn, st)) {
+                ScheduledExecutorService timer = Executors.newSingleThreadScheduledExecutor();
+                timer.schedule(
+                        () -> {
+                            LOGGER.warn("count query timed out, cancelling");
+                            try {
+                                st.cancel();
+                            } catch (SQLException e) {
+                                LOGGER.warn("cancel failed", e);
+                            }
+                        },
+                        columnarConfig.getCountTimeoutSeconds(),
+                        TimeUnit.SECONDS);
+                try (ResultSet rs = st.executeQuery(sql)) {
+                    System.out.println(formatTable(rs));
+                } catch (SQLException e) {
+                    throw rateLimitedOr(stats, e);
+                } finally {
+                    timer.shutdownNow();
+                }
+            }
+        }
+    }
+
+    static String countSql(ExtractorConfig.ColumnarIndexConfig c) {
+        return c.getCountQuery()
+                .replace(
+                        "${parquet}",
+                        "read_parquet('" + c.getParquetGlobPath() + "', hive_partitioning=1)");
+    }
+
+    /** Tab-separated table: header row then one row per result row. */
+    static String formatTable(ResultSet rs) throws SQLException {
+        ResultSetMetaData md = rs.getMetaData();
+        int n = md.getColumnCount();
+        StringBuilder sb = new StringBuilder();
+        for (int i = 1; i <= n; i++) {
+            sb.append(i > 1 ? "\t" : "").append(md.getColumnLabel(i));
+        }
+        sb.append('\n');
+        while (rs.next()) {
+            for (int i = 1; i <= n; i++) {
+                sb.append(i > 1 ? "\t" : "").append(rs.getString(i));
+            }
+            sb.append('\n');
+        }
+        return sb.toString();
+    }
+
+    private static ExtractorConfig.ColumnarIndexConfig requireColumnar(ExtractorConfig config)
+            throws TikaConfigException {
+        ExtractorConfig.ColumnarIndexConfig columnarConfig = config.getColumnarIndexConfig();
         if (columnarConfig == null) {
             throw new TikaConfigException(
                     "config requires a \"columnarIndex\" section -- see "
                             + "docs/columnar-index.adoc");
         }
+        return columnarConfig;
+    }
+
+    private static void setup(Connection conn) throws SQLException {
+        try (Statement setup = conn.createStatement()) {
+            setup.execute("INSTALL httpfs; LOAD httpfs;");
+            setup.execute("INSTALL aws; LOAD aws;");
+            setup.execute("CALL load_aws_credentials();");
+            setup.execute("SET s3_region='" + ExtractorConfig.CC_REGION + "';");
+            // DuckDB's httpfs defaults (http_retries=3, http_retry_wait_ms=100,
+            // http_retry_backoff=4) give well under 2 seconds of total backoff --
+            // nowhere near enough to survive S3 SlowDown throttling on a broad
+            // crawlGlob (e.g. "CC-MAIN-*") touching thousands of files across many
+            // crawls. Empirically, the httpfs defaults gave up on such a query after
+            // ~97 minutes to a 503 SlowDown with no partial results retained. Widen
+            // the retry budget to something in the spirit of BackoffHttpFetcher's
+            // ladder (this doesn't touch that class -- DuckDB's S3 reads for the
+            // Parquet index are a separate HTTP client from the WARC/CDX fetches).
+            // Backoff 2 made one throttled request wait up to ~2.3 h with no sockets open
+            // (2026-11-05), so the default curve is capped: ~9 min total, longest ~3 min.
+            for (String sql : retrySettings()) {
+                setup.execute(sql);
+            }
+            // DuckDB defaults to 80% of RAM; a crawl-wide scan that reads a wide column
+            // (e.g. url) can then take the whole box. -Dcc.duckdb.memoryLimit overrides.
+            String mem = System.getProperty("cc.duckdb.memoryLimit", "4GB");
+            if (!mem.matches("\\d+(\\.\\d+)?\\s*[KMGT]i?B")) {
+                throw new SQLException("bad cc.duckdb.memoryLimit: " + mem);
+            }
+            setup.execute("SET memory_limit='" + mem + "';");
+            // Each DuckDB thread issues its own S3 range reads; the default (all cores) can saturate a link.
+            String threads = System.getProperty("cc.duckdb.threads");
+            if (threads != null) {
+                if (!threads.matches("[1-9]\\d*")) {
+                    throw new SQLException("bad cc.duckdb.threads: " + threads);
+                }
+                setup.execute("SET threads=" + threads + ";");
+            }
+        }
+    }
+
+    static final int DEFAULT_HTTP_RETRIES = 12;
+    static final long DEFAULT_HTTP_RETRY_WAIT_MS = 2000;
+    static final double DEFAULT_HTTP_RETRY_BACKOFF = 1.5;
+
+    /**
+     * httpfs retry settings from -Dcc.duckdb.httpRetries / httpRetryWaitMs / httpRetryBackoff.
+     * Wait before retry n (0-based) is waitMs * backoff^n.
+     */
+    static List<String> retrySettings() throws SQLException {
+        int retries = intProp("cc.duckdb.httpRetries", DEFAULT_HTTP_RETRIES);
+        long waitMs = intProp("cc.duckdb.httpRetryWaitMs", (int) DEFAULT_HTTP_RETRY_WAIT_MS);
+        double backoff;
+        String b = System.getProperty("cc.duckdb.httpRetryBackoff");
+        try {
+            backoff = b == null ? DEFAULT_HTTP_RETRY_BACKOFF : Double.parseDouble(b);
+        } catch (NumberFormatException e) {
+            throw new SQLException("bad cc.duckdb.httpRetryBackoff: " + b);
+        }
+        if (backoff < 1 || backoff > 10) {
+            throw new SQLException("bad cc.duckdb.httpRetryBackoff: " + b);
+        }
+        return List.of(
+                "SET http_retries = " + retries + ";",
+                "SET http_retry_wait_ms = " + waitMs + ";",
+                "SET http_retry_backoff = " + backoff + ";");
+    }
+
+    private static int intProp(String name, int dflt) throws SQLException {
+        String v = System.getProperty(name);
+        if (v == null) {
+            return dflt;
+        }
+        if (!v.matches("\\d{1,7}")) {
+            throw new SQLException("bad " + name + ": " + v);
+        }
+        return Integer.parseInt(v);
+    }
+
+    private static void execute(ExtractorConfig fetcherConfig) throws Exception {
+        ExtractorConfig.ColumnarIndexConfig columnarConfig = requireColumnar(fetcherConfig);
+        if (StringUtils.isBlank(columnarConfig.getWhere())) {
+            throw new TikaConfigException("QueryIndex requires columnarIndex.where");
+        }
 
         CCIndexReaderCounter counter = new CCIndexReaderCounter();
         CCFileExtractorRecordProcessor processor =
                 new CCFileExtractorRecordProcessor(fetcherConfig, counter);
+        RunManifest manifest = RunManifest.start(fetcherConfig, "QueryIndex");
+        String status = "failed";
 
-        String sql = "SELECT url, content_mime_type, content_mime_detected, fetch_status, "
-                + "content_digest, content_charset, content_languages, content_truncated, "
-                + "warc_filename, warc_record_offset, warc_record_length "
-                + "FROM read_parquet('" + columnarConfig.getParquetGlobPath()
-                + "', hive_partitioning=1) WHERE " + columnarConfig.getWhere();
+        String sql =
+                "SELECT url, content_mime_type, content_mime_detected, fetch_status, "
+                        + "content_digest, content_charset, content_languages, content_truncated, "
+                        + "warc_filename, warc_record_offset, warc_record_length "
+                        + "FROM read_parquet('"
+                        + columnarConfig.getParquetGlobPath()
+                        + "', hive_partitioning=1) WHERE "
+                        + columnarConfig.getWhere();
 
         LOGGER.info("querying columnar index: {}", sql);
         long start = System.currentTimeMillis();
+        DuckDbHttpStats stats = null;
         try {
+            RateLimitPreflight.check(columnarConfig.getCrawlGlob());
             try (Connection conn = DriverManager.getConnection("jdbc:duckdb:")) {
-                try (Statement setup = conn.createStatement()) {
-                    setup.execute("INSTALL httpfs; LOAD httpfs;");
-                    setup.execute("INSTALL aws; LOAD aws;");
-                    setup.execute("CALL load_aws_credentials();");
-                    setup.execute("SET s3_region='" + ExtractorConfig.CC_REGION + "';");
-                    // DuckDB's httpfs defaults (http_retries=3, http_retry_wait_ms=100,
-                    // http_retry_backoff=4) give well under 2 seconds of total backoff --
-                    // nowhere near enough to survive S3 SlowDown throttling on a broad
-                    // crawlGlob (e.g. "CC-MAIN-*") touching thousands of files across many
-                    // crawls. Empirically, the httpfs defaults gave up on such a query after
-                    // ~97 minutes to a 503 SlowDown with no partial results retained. Widen
-                    // the retry budget to something in the spirit of BackoffHttpFetcher's
-                    // ladder (this doesn't touch that class -- DuckDB's S3 reads for the
-                    // Parquet index are a separate HTTP client from the WARC/CDX fetches).
-                    setup.execute("SET http_retries = 12;");
-                    setup.execute("SET http_retry_wait_ms = 2000;");
-                    setup.execute("SET http_retry_backoff = 2;");
-                }
-                try (Statement query = conn.createStatement();
-                        ResultSet rs = query.executeQuery(sql)) {
-                    while (rs.next()) {
-                        String line = toCdxLine(rs);
-                        boolean shouldContinue;
-                        try {
-                            shouldContinue = processor.process(line);
-                        } catch (IOException e) {
-                            LOGGER.warn("bad row: " + line, e);
-                            continue;
-                        }
-                        if (!shouldContinue) {
-                            break;
-                        }
+                setup(conn);
+                try (Statement query = conn.createStatement()) {
+                    stats = startStats(conn, query);
+                    runQuery(query, sql, processor, stats);
+                } finally {
+                    if (stats != null) {
+                        stats.close();
+                        manifest.setDuckDbHttp(
+                                stats.getTotalRequests(), stats.rateLimitedByStatus());
                     }
                 }
             }
+            status = "completed";
         } finally {
             processor.close();
+            manifest.finish(counter, status);
         }
         long elapsed = System.currentTimeMillis() - start;
         LOGGER.info(
@@ -130,12 +273,63 @@ public class CCColumnarIndexExtractor {
                 counter);
     }
 
+    private static void runQuery(
+            Statement query,
+            String sql,
+            CCFileExtractorRecordProcessor processor,
+            DuckDbHttpStats stats)
+            throws SQLException, InterruptedException {
+        try (ResultSet rs = query.executeQuery(sql)) {
+            while (rs.next()) {
+                String line = toCdxLine(rs);
+                boolean shouldContinue;
+                try {
+                    shouldContinue = processor.process(line);
+                } catch (IOException e) {
+                    LOGGER.warn("bad row: " + line, e);
+                    continue;
+                }
+                if (!shouldContinue) {
+                    break;
+                }
+            }
+        } catch (SQLException e) {
+            throw rateLimitedOr(stats, e);
+        }
+    }
+
+    private static DuckDbHttpStats startStats(Connection conn, Statement query)
+            throws SQLException {
+        return DuckDbHttpStats.start(
+                conn.unwrap(DuckDBConnection.class),
+                query,
+                new RateLimitMonitor(
+                        System::currentTimeMillis,
+                        RateLimitMonitor.DEFAULT_THRESHOLD,
+                        RateLimitMonitor.DEFAULT_WINDOW_MS,
+                        RateLimitMonitor.DEFAULT_INITIAL_PAUSE_MS),
+                STATS_POLL_MS);
+    }
+
+    /** If the stats poller cancelled the query, an exception that says why; else {@code e}. */
+    private static SQLException rateLimitedOr(DuckDbHttpStats stats, SQLException e) {
+        if (stats == null || !stats.isTripped()) {
+            return e;
+        }
+        return new SQLException(
+                "query cancelled: "
+                        + RateLimitMonitor.banner(
+                                RateLimitMonitor.DEFAULT_THRESHOLD,
+                                RateLimitMonitor.DEFAULT_WINDOW_MS),
+                e);
+    }
+
     /**
-     * Builds a synthetic CDX-format line ("sortkey timestamp {json}") from a columnar-index
-     * result row, using placeholder sortkey/timestamp tokens (unused by
-     * {@link org.tallison.cc.index.CCIndexRecord#parseRecord}) and a real JSON payload with the
-     * same kebab-case keys as an actual CDX line, so it flows through the existing CDX-parsing
-     * and fetch pipeline unchanged.
+     * Builds a synthetic CDX-format line ("sortkey timestamp {json}") from a columnar-index result
+     * row, using placeholder sortkey/timestamp tokens (unused by {@link
+     * org.tallison.cc.index.CCIndexRecord#parseRecord}) and a real JSON payload with the same
+     * kebab-case keys as an actual CDX line, so it flows through the existing CDX-parsing and fetch
+     * pipeline unchanged.
      */
     static String toCdxLine(ResultSet rs) throws SQLException {
         ObjectNode node = MAPPER.createObjectNode();
